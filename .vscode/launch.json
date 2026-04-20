@@ -1,0 +1,15 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Flutter (debug)",
+      "type": "dart",
+      "request": "launch"
+    },
+    {
+      "name": "Flutter (attach)",
+      "type": "dart",
+      "request": "attach"
+    },
+  ]
+}
