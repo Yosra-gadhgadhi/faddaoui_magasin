@@ -47,7 +47,7 @@ class AiHomeService {
   static const String _gasCookerImage =
       "https://images.pexels.com/photos/6996164/pexels-photo-6996164.jpeg?auto=compress&cs=tinysrgb&w=1200&h=900&dpr=2";
   static const String _tvImage =
-      "https://images.pexels.com/photos/678257/pexels-photo-678257.jpeg?auto=compress&cs=tinysrgb&w=1200&h=900&dpr=2";
+      "https://images.pexels.com/photos/5825570/pexels-photo-5825570.jpeg?auto=compress&cs=tinysrgb&w=1200&h=900&dpr=2";
   static const String _kitchenwareImage =
       "https://images.pexels.com/photos/4226805/pexels-photo-4226805.jpeg?auto=compress&cs=tinysrgb&w=1200&h=900&dpr=2";
   static const String _householdImage =

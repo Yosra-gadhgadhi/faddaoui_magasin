@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'package:elfaddoui_app/app/routes.dart';
+import 'package:elfaddoui_app/core/l10n/app_localizations.dart';
 import 'package:elfaddoui_app/core/theme/app_colors.dart';
 import 'package:elfaddoui_app/core/theme/app_spacing.dart';
 import 'package:elfaddoui_app/core/utils/validators.dart';
@@ -54,27 +55,27 @@ class _ProfileEditScreenState extends State<ProfileEditScreen>
       _confirm.text.trim().isNotEmpty ||
       _avatarUrl != _savedAvatarUrl;
 
-  String get _passwordStrengthLabel {
+  String get _passwordStrengthKey {
     final p = _password.text.trim();
     if (p.isEmpty) return "";
-    if (p.length < 8) return "Faible";
+    if (p.length < 8) return "weak";
     if (RegExp(r'^(?=.*[A-Za-z])(?=.*\d).{8,}$').hasMatch(p)) {
       if (RegExp(r'^(?=.*[A-Z])(?=.*[a-z])(?=.*\d)(?=.*[^A-Za-z0-9]).{10,}$')
           .hasMatch(p)) {
-        return "Fort";
+        return "strong";
       }
-      return "Moyen";
+      return "medium";
     }
-    return "Faible";
+    return "weak";
   }
 
   Color get _passwordStrengthColor {
-    switch (_passwordStrengthLabel) {
-      case "Fort":
+    switch (_passwordStrengthKey) {
+      case "strong":
         return const Color(0xFF2E7D32);
-      case "Moyen":
+      case "medium":
         return const Color(0xFFAF7E00);
-      case "Faible":
+      case "weak":
         return Colors.red;
       default:
         return AppColors.muted;
@@ -114,7 +115,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen>
       SnackBar(
         duration: const Duration(milliseconds: 1100),
         behavior: SnackBarBehavior.floating,
-        backgroundColor: Colors.white,
+        backgroundColor: Theme.of(context).colorScheme.surface,
         elevation: 0,
         margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
         shape: RoundedRectangleBorder(
@@ -148,7 +149,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen>
       context: context,
       barrierDismissible: true,
       builder: (_) => AlertDialog(
-        backgroundColor: Colors.white,
+        backgroundColor: Theme.of(context).colorScheme.surface,
         surfaceTintColor: Colors.transparent,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
         title: Text(
@@ -187,6 +188,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen>
   }
 
   void _save() {
+    final t = AppLocalizations.of(context);
     _haptic();
 
     final n = _name.text.trim();
@@ -212,13 +214,14 @@ class _ProfileEditScreenState extends State<ProfileEditScreen>
         _password.clear();
         _confirm.clear();
       });
-      _toastPremium("Profil mis à jour ✅");
+      _toastPremium(t.tr('profile_saved'));
     } else {
-      _toastPremium("Vérifiez vos champs ⚠️");
+      _toastPremium(t.tr('profile_check_fields'));
     }
   }
 
   Future<void> _changeAvatar() async {
+    final t = AppLocalizations.of(context);
     _haptic();
 
     const a1 =
@@ -227,8 +230,9 @@ class _ProfileEditScreenState extends State<ProfileEditScreen>
         "https://images.pexels.com/photos/614810/pexels-photo-614810.jpeg?auto=compress&cs=tinysrgb&w=300";
 
     final ok = await _confirmDialog(
-      title: "Changer la photo de profil ?",
-      confirmText: "Changer",
+      title: t.tr('profile_change_photo_confirm'),
+      confirmText: t.tr('common_change'),
+      cancelText: t.tr('common_cancel'),
       confirmColor: AppColors.bordeaux,
     );
     if (!ok) return;
@@ -237,14 +241,16 @@ class _ProfileEditScreenState extends State<ProfileEditScreen>
       _avatarUrl = (_avatarUrl == null || _avatarUrl == a2) ? a1 : a2;
     });
 
-    _toastPremium("Photo mise à jour ✅");
+    _toastPremium(t.tr('profile_photo_updated'));
   }
 
   Future<void> _logout() async {
+    final t = AppLocalizations.of(context);
     _haptic();
     final ok = await _confirmDialog(
-      title: "Se déconnecter ?",
-      confirmText: "Déconnexion",
+      title: t.tr('profile_logout_confirm'),
+      confirmText: t.tr('profile_logout'),
+      cancelText: t.tr('common_cancel'),
       confirmColor: Colors.red,
     );
     if (!ok) return;
@@ -254,10 +260,11 @@ class _ProfileEditScreenState extends State<ProfileEditScreen>
     if (!mounted) return;
     Navigator.pushNamedAndRemoveUntil(context, AppRoutes.signIn, (_) => false);
 
-    _toastPremium("Déconnecté ✅");
+    _toastPremium(t.tr('profile_logged_out'));
   }
 
   void _openServicesSheet() {
+    final t = AppLocalizations.of(context);
     _haptic();
     showModalBottomSheet<void>(
       context: context,
@@ -292,8 +299,8 @@ class _ProfileEditScreenState extends State<ProfileEditScreen>
                     padding: const EdgeInsets.fromLTRB(16, 4, 10, 6),
                     child: Row(
                       children: [
-                        const Text(
-                          "Services",
+                        Text(
+                          t.tr('profile_services'),
                           style: TextStyle(
                             fontSize: 17,
                             fontWeight: FontWeight.w800,
@@ -321,7 +328,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen>
                             Expanded(
                               child: _ServiceQuickCard(
                                 icon: Icons.notifications_rounded,
-                                title: "Notifications",
+                                title: t.tr('notif_title'),
                                 onTap: () {
                                   Navigator.of(sheetContext).pop();
                                   Navigator.of(context).push(
@@ -336,7 +343,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen>
                             Expanded(
                               child: _ServiceQuickCard(
                                 icon: Icons.local_shipping_rounded,
-                                title: "Suivi",
+                                title: t.tr('cart_tracking'),
                                 onTap: () {
                                   Navigator.of(sheetContext).pop();
                                   Navigator.of(context).push(
@@ -354,7 +361,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen>
                         const SizedBox(height: 10),
                         _ServiceTile(
                           icon: Icons.notifications_rounded,
-                          title: "Notifications",
+                          title: t.tr('notif_title'),
                           onTap: () {
                             Navigator.of(sheetContext).pop();
                             Navigator.of(context).push(
@@ -367,7 +374,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen>
                         const SizedBox(height: 8),
                         _ServiceTile(
                           icon: Icons.local_shipping_rounded,
-                          title: "Suivi",
+                          title: t.tr('cart_tracking'),
                           onTap: () {
                             Navigator.of(sheetContext).pop();
                             Navigator.of(context).push(
@@ -382,7 +389,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen>
                         const SizedBox(height: 8),
                         _ServiceTile(
                           icon: Icons.settings_rounded,
-                          title: "Paramètres",
+                          title: t.tr('settings_title'),
                           onTap: () {
                             Navigator.of(sheetContext).pop();
                             Navigator.of(context).pushNamed(AppRoutes.settings);
@@ -391,7 +398,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen>
                         const SizedBox(height: 8),
                         _ServiceTile(
                           icon: Icons.info_outline_rounded,
-                          title: "Contact & À propos",
+                          title: t.tr('profile_contact_about'),
                           onTap: () {
                             Navigator.of(sheetContext).pop();
                             Navigator.of(context).pushNamed(AppRoutes.aboutStore);
@@ -425,6 +432,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen>
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context);
     const bg = Colors.white;
 
     return Scaffold(
@@ -432,7 +440,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen>
 
       appBar: AppBar(
         toolbarHeight: 78,
-        backgroundColor: Colors.white,
+        backgroundColor: Theme.of(context).colorScheme.surface,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         shadowColor: Colors.transparent,
@@ -451,7 +459,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen>
           ),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const FittedBox(
+        title: FittedBox(
           fit: BoxFit.scaleDown,
           child: Row(
             mainAxisSize: MainAxisSize.min,
@@ -459,7 +467,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen>
               Icon(Icons.person_rounded, size: 16, color: AppColors.bordeauxDark),
               SizedBox(width: 8),
               Text(
-                "Profil",
+                t.tr('nav_profile'),
                 style: TextStyle(
                   color: AppColors.bordeauxDark,
                   fontWeight: FontWeight.w800,
@@ -482,7 +490,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen>
               child: IconButton(
                 onPressed: _openServicesSheet,
                 style: IconButton.styleFrom(
-                  backgroundColor: Colors.white,
+                  backgroundColor: Theme.of(context).colorScheme.surface,
                   side: BorderSide(
                     color: AppColors.bordeaux.withValues(alpha: 0.18),
                   ),
@@ -492,7 +500,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen>
                   color: AppColors.bordeaux,
                   size: 20,
                 ),
-                tooltip: "Services",
+                tooltip: t.tr('profile_services'),
               ),
             ),
           ),
@@ -516,7 +524,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen>
               mainAxisSize: MainAxisSize.min,
               children: [
                 PrimaryButton(
-                  text: "Enregistrer",
+                  text: t.tr('common_save'),
                   onPressed: _hasChanges ? _save : null,
                   height: 50,
                   radius: 16,
@@ -528,7 +536,13 @@ class _ProfileEditScreenState extends State<ProfileEditScreen>
                     child: _lastUpdatedAt == null
                         ? const SizedBox.shrink()
                         : Text(
-                            "Dernière mise à jour: ${_lastUpdatedAt!.hour.toString().padLeft(2, '0')}:${_lastUpdatedAt!.minute.toString().padLeft(2, '0')}",
+                            t.tr(
+                              'profile_last_update',
+                              params: {
+                                'time':
+                                    "${_lastUpdatedAt!.hour.toString().padLeft(2, '0')}:${_lastUpdatedAt!.minute.toString().padLeft(2, '0')}",
+                              },
+                            ),
                             style: const TextStyle(
                               fontSize: 11.5,
                               color: AppColors.muted,
@@ -607,8 +621,8 @@ class _ProfileEditScreenState extends State<ProfileEditScreen>
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text(
-                            "Informations du compte",
+                          Text(
+                            t.tr('profile_account_info'),
                             style: TextStyle(
                               fontSize: 16.5,
                               fontWeight: FontWeight.w800,
@@ -617,7 +631,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen>
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            "Modifiez seulement ce que vous voulez.",
+                            t.tr('profile_edit_hint'),
                             style: TextStyle(
                               fontSize: 12.5,
                               fontWeight: FontWeight.w700,
@@ -632,7 +646,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen>
               ),
 
               const SizedBox(height: 10),
-              const _ProfileSectionTitle("Compte"),
+              _ProfileSectionTitle(t.tr('profile_account_section')),
               const SizedBox(height: 8),
 
               // ✅ info box
@@ -640,15 +654,15 @@ class _ProfileEditScreenState extends State<ProfileEditScreen>
                 padding:
                     const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: AppSpacing.sm),
                 decoration: AppSurface.softCard(),
-                child: const Row(
+                child: Row(
                   children: [
-                    Icon(Icons.info_outline_rounded,
+                    const Icon(Icons.info_outline_rounded,
                         size: 18, color: AppColors.bordeaux),
-                    SizedBox(width: 8),
+                    const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        "Laissez le mot de passe vide si vous ne souhaitez pas le changer.",
-                        style: TextStyle(
+                        t.tr('profile_password_optional_hint'),
+                        style: const TextStyle(
                             fontSize: 12.5,
                             fontWeight: FontWeight.w800,
                             color: AppColors.text),
@@ -668,28 +682,27 @@ class _ProfileEditScreenState extends State<ProfileEditScreen>
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     AppTextField(
-                      label: "Nom complet",
-                      hint: "Entrer votre nom",
+                      label: t.tr('profile_full_name'),
+                      hint: t.tr('profile_enter_name'),
                       controller: _name,
                       prefixIcon: const Icon(Icons.person_outline_rounded,
                           color: AppColors.muted),
                     ),
-                    if (nameError)
-                      const _FieldError("Nom invalide (min 3 caractères)"),
+                    if (nameError) _FieldError(t.tr('profile_name_invalid')),
                     const SizedBox(height: 12),
                     AppTextField(
-                      label: "Email",
-                      hint: "Entrer votre email",
+                      label: t.tr('profile_email'),
+                      hint: t.tr('profile_enter_email'),
                       controller: _email,
                       keyboardType: TextInputType.emailAddress,
                       prefixIcon: const Icon(Icons.mail_outline_rounded,
                           color: AppColors.muted),
                     ),
-                    if (emailError) const _FieldError("Email invalide"),
+                    if (emailError) _FieldError(t.tr('profile_email_invalid')),
                     const SizedBox(height: 14),
                     AppTextField(
-                      label: "Mot de passe (optionnel)",
-                      hint: "Nouveau mot de passe",
+                      label: t.tr('profile_password_optional'),
+                      hint: t.tr('profile_new_password'),
                       controller: _password,
                       obscureText: hidePass,
                       prefixIcon: const Icon(Icons.lock_outline_rounded,
@@ -704,9 +717,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen>
                         ),
                       ),
                     ),
-                    if (passError)
-                      const _FieldError(
-                          "Mot de passe invalide (min 8 caractères)"),
+                    if (passError) _FieldError(t.tr('profile_password_invalid')),
                     if (_password.text.trim().isNotEmpty) ...[
                       const SizedBox(height: 6),
                       Row(
@@ -718,7 +729,16 @@ class _ProfileEditScreenState extends State<ProfileEditScreen>
                           ),
                           const SizedBox(width: 6),
                           Text(
-                            "Force du mot de passe: $_passwordStrengthLabel",
+                            t.tr(
+                              'profile_password_strength',
+                              params: {
+                                'level': switch (_passwordStrengthKey) {
+                                  'strong' => t.tr('common_strong'),
+                                  'medium' => t.tr('common_medium'),
+                                  _ => t.tr('common_weak'),
+                                },
+                              },
+                            ),
                             style: TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.w700,
@@ -730,8 +750,8 @@ class _ProfileEditScreenState extends State<ProfileEditScreen>
                     ],
                     const SizedBox(height: 12),
                     AppTextField(
-                      label: "Confirmer le mot de passe",
-                      hint: "Retaper le mot de passe",
+                      label: t.tr('profile_confirm_password'),
+                      hint: t.tr('profile_retype_password'),
                       controller: _confirm,
                       obscureText: hideConfirm,
                       prefixIcon: const Icon(Icons.lock_outline_rounded,
@@ -747,9 +767,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen>
                         ),
                       ),
                     ),
-                    if (confirmError)
-                      const _FieldError(
-                          "Les mots de passe ne correspondent pas"),
+                    if (confirmError) _FieldError(t.tr('profile_password_mismatch')),
                   ],
                 ),
               ),
@@ -759,9 +777,9 @@ class _ProfileEditScreenState extends State<ProfileEditScreen>
                 child: TextButton.icon(
                   onPressed: _logout,
                   icon: const Icon(Icons.logout_rounded, size: 18, color: Colors.red),
-                  label: const Text(
-                    "Se déconnecter",
-                    style: TextStyle(
+                  label: Text(
+                    t.tr('profile_logout'),
+                    style: const TextStyle(
                       color: Colors.red,
                       fontWeight: FontWeight.w700,
                     ),

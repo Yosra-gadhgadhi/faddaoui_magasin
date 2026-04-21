@@ -383,6 +383,7 @@
 // }
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:elfaddoui_app/core/l10n/tr3.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/app_text_field.dart';
@@ -446,7 +447,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       child: Scaffold(
         backgroundColor: Colors.white,
         appBar: AppBar(
-          title: const Text("Mot de passe oublié"),
+          title: Text(tr3(context, fr: "Mot de passe oublié", en: "Forgot password", ar: "نسيت كلمة المرور")),
           backgroundColor: Colors.white,
           elevation: 0,
         ),
@@ -458,18 +459,18 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                 children: [
 
                   AppTextField(
-                    label: "Email",
-                    hint: "Entrer votre email",
+                    label: tr3(context, fr: "Email", en: "Email", ar: "البريد الإلكتروني"),
+                    hint: tr3(context, fr: "Entrer votre email", en: "Enter your email", ar: "أدخل بريدك الإلكتروني"),
                     controller: _email,
                     keyboardType: TextInputType.emailAddress,
                     prefixIcon: const Icon(Icons.mail_outline),
                   ),
 
                   if (emailError)
-                    const Padding(
+                    Padding(
                       padding: EdgeInsets.only(top: 6),
                       child: Text(
-                        "Email invalide",
+                        tr3(context, fr: "Email invalide", en: "Invalid email", ar: "بريد إلكتروني غير صالح"),
                         style: TextStyle(
                           color: AppColors.bordeaux,
                           fontSize: 12,
@@ -480,7 +481,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                   const SizedBox(height: 20),
 
                   PrimaryButton(
-                    text: s.loading ? "..." : "Envoyer",
+                    text: s.loading ? "..." : tr3(context, fr: "Envoyer", en: "Send", ar: "إرسال"),
                     onPressed: s.loading ? null : _send,
                   )
                 ],

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:elfaddoui_app/core/l10n/tr3.dart';
+import 'package:elfaddoui_app/core/l10n/product_text_localizer.dart';
 
 import 'package:elfaddoui_app/core/theme/app_colors.dart';
 import 'package:elfaddoui_app/core/theme/app_text_styles.dart';
@@ -70,7 +72,7 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
     ChatMessage(
       role: ChatRole.bot,
       text:
-          "Salut 👋 Je suis ton assistant ElFaddaoui.\nDis-moi ce que tu cherches (ex: “lait pas cher”, “recette omelette”, “panier 50 DT”).",
+          "Bonjour 👋 Je suis votre assistant ElFaddaoui.\nDites-moi ce que vous cherchez.",
       at: DateTime.now(),
     ),
   ];
@@ -135,10 +137,12 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
                       name: p.name,
                       image: p.image,
                       price: p.price,
-                      badge: "Sélection",
+                      badge: tr3(context, fr: "Sélection", en: "Selection", ar: "مختار"),
                     ))
                 .toList(),
-            sources: const [ChatSource(title: "Catalogue interne")],
+            sources: [
+              ChatSource(title: tr3(context, fr: "Catalogue interne", en: "Internal catalog", ar: "الكتالوج الداخلي")),
+            ],
           ),
         );
       } else {
@@ -148,7 +152,12 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
           _push(
             ChatMessage(
               role: ChatRole.bot,
-              text: "Je n’ai rien trouvé pour “$text”. Essaie lait, pâtes, riz…",
+              text: tr3(
+                context,
+                fr: "Je n’ai rien trouvé pour “$text”. Essaie lait, pâtes, riz…",
+                en: "I found nothing for “$text”. Try milk, pasta, rice…",
+                ar: "لم أجد نتائج لـ “$text”. جرّب حليب، معكرونة، أرز…",
+              ),
               at: DateTime.now(),
             ),
           );
@@ -156,7 +165,7 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
           _push(
             ChatMessage(
               role: ChatRole.bot,
-              text: "J’ai trouvé ces produits :",
+              text: tr3(context, fr: "J’ai trouvé ces produits :", en: "I found these products:", ar: "وجدت هذه المنتجات:"),
               at: DateTime.now(),
               products: res
                   .take(6)
@@ -165,16 +174,22 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
                         name: p.name,
                         image: p.image,
                         price: p.price,
-                        badge: "Résultat",
+                        badge: tr3(context, fr: "Résultat", en: "Result", ar: "نتيجة"),
                       ))
                   .toList(),
-              sources: const [ChatSource(title: "Catalogue interne")],
+              sources: [
+                ChatSource(title: tr3(context, fr: "Catalogue interne", en: "Internal catalog", ar: "الكتالوج الداخلي")),
+              ],
             ),
           );
         }
       }
     } catch (e) {
-      _push(ChatMessage(role: ChatRole.bot, text: "Oups 😅 erreur: ${e.toString()}", at: DateTime.now()));
+      _push(ChatMessage(
+        role: ChatRole.bot,
+        text: tr3(context, fr: "Erreur: ${e.toString()}", en: "Error: ${e.toString()}", ar: "خطأ: ${e.toString()}"),
+        at: DateTime.now(),
+      ));
     } finally {
       if (mounted) {
         setState(() => _sending = false);
@@ -222,10 +237,13 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text("Assistant IA", style: AppTextStyles.h3.copyWith(fontWeight: FontWeight.w900)),
+                Text(
+                  tr3(context, fr: "Assistant IA", en: "AI Assistant", ar: "مساعد الذكاء الاصطناعي"),
+                  style: AppTextStyles.h3.copyWith(fontWeight: FontWeight.w900),
+                ),
                 const SizedBox(height: 2),
-                const Text(
-                  "Recherche • Recettes • Budget",
+                Text(
+                  tr3(context, fr: "Recherche • Recettes • Budget", en: "Search • Recipes • Budget", ar: "بحث • وصفات • ميزانية"),
                   style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.muted, height: 1),
                 ),
               ],
@@ -243,11 +261,11 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
               child: ListView(
                 scrollDirection: Axis.horizontal,
                 children: [
-                  _ChipMini(icon: Icons.search_rounded, text: "Search", onTap: () => _sendText("lait pas cher")),
+                  _ChipMini(icon: Icons.search_rounded, text: tr3(context, fr: "Recherche", en: "Search", ar: "بحث"), onTap: () => _sendText("lait pas cher")),
                   const SizedBox(width: 10),
-                  _ChipMini(icon: Icons.restaurant_rounded, text: "Recette", onTap: () => _sendText("recette rapide")),
+                  _ChipMini(icon: Icons.restaurant_rounded, text: tr3(context, fr: "Recette", en: "Recipe", ar: "وصفة"), onTap: () => _sendText("recette rapide")),
                   const SizedBox(width: 10),
-                  _ChipMini(icon: Icons.savings_rounded, text: "Budget 50", onTap: () => _sendText("budget 50 dt")),
+                  _ChipMini(icon: Icons.savings_rounded, text: tr3(context, fr: "Budget 50", en: "Budget 50", ar: "ميزانية 50"), onTap: () => _sendText("budget 50 dt")),
                 ],
               ),
             ),
@@ -386,7 +404,10 @@ class _BubbleClean extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text("Sources", style: TextStyle(fontWeight: FontWeight.w900, color: AppColors.text)),
+                  Text(
+                    tr3(context, fr: "Sources", en: "Sources", ar: "المصادر"),
+                    style: const TextStyle(fontWeight: FontWeight.w900, color: AppColors.text),
+                  ),
                   const SizedBox(height: 6),
                   ...sources.map(
                     (s) => Text(
@@ -448,7 +469,7 @@ class _MiniProductClean extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    p.name,
+                    localizeProductText(context, p.name),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(fontWeight: FontWeight.w900, color: AppColors.text),
@@ -513,7 +534,7 @@ class _InputClean extends StatelessWidget {
                 textInputAction: TextInputAction.send,
                 onSubmitted: (_) => onSend(),
                 decoration: InputDecoration(
-                  hintText: "Écrire un message…",
+                  hintText: tr3(context, fr: "Écrire un message…", en: "Write a message…", ar: "اكتب رسالة…"),
                   filled: true,
                   fillColor: AppColors.fieldFill,
                   contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),

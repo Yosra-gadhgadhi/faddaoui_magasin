@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:elfaddoui_app/core/l10n/tr3.dart';
+import 'package:elfaddoui_app/core/l10n/product_text_localizer.dart';
 import 'package:elfaddoui_app/core/theme/app_colors.dart';
 import 'package:elfaddoui_app/core/theme/app_text_styles.dart';
 
@@ -16,7 +18,14 @@ class ProductListScreen extends StatelessWidget {
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         title: Text(
-          categoryName != null ? "Produits: $categoryName" : "Tous les produits",
+          categoryName != null
+              ? tr3(
+                  context,
+                  fr: "Produits: ${localizeProductText(context, categoryName!)}",
+                  en: "Products: ${localizeProductText(context, categoryName!)}",
+                  ar: "المنتجات: ${localizeProductText(context, categoryName!)}",
+                )
+              : tr3(context, fr: "Tous les produits", en: "All products", ar: "كل المنتجات"),
           style: AppTextStyles.h2.copyWith(color: AppColors.text, fontWeight: FontWeight.w900),
         ),
         actions: [
@@ -38,8 +47,18 @@ class ProductListScreen extends StatelessWidget {
         itemCount: 10,
         itemBuilder: (context, index) {
           return _ProductCard(
-            name: "Produit ${index + 1}",
-            desc: "Description courte du produit ${index + 1}.",
+            name: tr3(
+              context,
+              fr: "Produit ${index + 1}",
+              en: "Product ${index + 1}",
+              ar: "منتج ${index + 1}",
+            ),
+            desc: tr3(
+              context,
+              fr: "Description courte du produit ${index + 1}.",
+              en: "Short product description ${index + 1}.",
+              ar: "وصف قصير للمنتج ${index + 1}.",
+            ),
             price: (10 + index * 2).toDouble(),
             image:
                 'https://images.pexels.com/photos/4050347/pexels-photo-4050347.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1',

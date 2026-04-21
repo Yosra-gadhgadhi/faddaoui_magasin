@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:carousel_slider/carousel_slider.dart';
+import 'package:elfaddoui_app/core/l10n/tr3.dart';
+import 'package:elfaddoui_app/core/l10n/product_text_localizer.dart';
 
 import 'package:elfaddoui_app/core/theme/app_colors.dart';
 import 'package:elfaddoui_app/core/theme/app_spacing.dart';
@@ -56,12 +58,12 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
   double? get _oldPrice => _product?.oldPrice;
   double? get _discountPct => _product?.discountPct;
   double get _totalPrice => _price * _quantity;
-  String get _unit {
+  String _unit(BuildContext context) {
     final lower = _name.toLowerCase();
     if (lower.contains('1l') || lower.contains('1.5l')) return '1 L';
     if (lower.contains('1kg')) return '1 kg';
     if (lower.contains('500g')) return '500 g';
-    return 'Pièce';
+    return tr3(context, fr: 'Pièce', en: 'Piece', ar: 'قطعة');
   }
 
   String get _desc =>
@@ -133,8 +135,13 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
       id: rawId,
       name: title,
       description:
-          "Produit disponible localement. Les détails backend ne sont pas encore synchronisés pour cet article.",
-      category: "Catalogue",
+          tr3(
+            context,
+            fr: "Produit disponible localement. Les détails backend ne sont pas encore synchronisés pour cet article.",
+            en: "Product available locally. Backend details are not fully synchronized yet for this item.",
+            ar: "المنتج متوفر محليًا. تفاصيل الخلفية غير متزامنة بالكامل لهذا العنصر بعد.",
+          ),
+      category: tr3(context, fr: "Catalogue", en: "Catalog", ar: "الكتالوج"),
       image: _fallbackImage,
       price: double.parse(price.toStringAsFixed(2)),
       oldPrice: null,
@@ -184,7 +191,11 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
     );
     context.read<FavoritesCubit>().toggle(fav);
     final isFav = context.read<FavoritesCubit>().isFavorite(widget.productId);
-    _toastPremium(isFav ? "Ajouté aux favoris" : "Retiré des favoris");
+    _toastPremium(
+      isFav
+          ? tr3(context, fr: "Ajouté aux favoris", en: "Added to favorites", ar: "تمت الإضافة للمفضلة")
+          : tr3(context, fr: "Retiré des favoris", en: "Removed from favorites", ar: "تمت الإزالة من المفضلة"),
+    );
   }
 
   @override
@@ -195,7 +206,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
     if (_loading) {
       return const Scaffold(
         backgroundColor: bg,
-        body: Center(child: CircularProgressIndicator()),
+        body: _ProductDetailsSkeleton(),
       );
     }
     if (_error != null) {
@@ -204,7 +215,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
         appBar: AppBar(
           backgroundColor: bg,
           elevation: 0,
-          title: const Text("Détails"),
+          title: Text(tr3(context, fr: "Détails", en: "Details", ar: "التفاصيل")),
         ),
         body: Center(
           child: Column(
@@ -215,7 +226,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
               const SizedBox(height: 10),
               ElevatedButton(
                 onPressed: _loadProduct,
-                child: const Text("Réessayer"),
+                child: Text(tr3(context, fr: "Réessayer", en: "Retry", ar: "إعادة المحاولة")),
               ),
             ],
           ),
@@ -240,7 +251,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
             ),
             titleSpacing: 0,
             title: Text(
-              "Détails",
+              tr3(context, fr: "Détails", en: "Details", ar: "التفاصيل"),
               style: AppTextStyles.h3
                   .copyWith(fontWeight: FontWeight.w800, color: AppColors.text),
             ),
@@ -354,7 +365,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                     children: [
                       Expanded(
                         child: Text(
-                          _name,
+                          localizeProductText(context, _name),
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                           style: AppTextStyles.h2.copyWith(
@@ -373,7 +384,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                           borderAlpha: 0.80,
                         ),
                         child: Text(
-                          _unit,
+                          _unit(context),
                           style: const TextStyle(
                               fontWeight: FontWeight.w800,
                               color: AppColors.text,
@@ -426,7 +437,12 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                   if (_oldPrice != null && _oldPrice! > _price) ...[
                     const SizedBox(height: 6),
                     Text(
-                      "Économie ${(_oldPrice! - _price).toStringAsFixed(2)} DT",
+                      tr3(
+                        context,
+                        fr: "Économie ${(_oldPrice! - _price).toStringAsFixed(2)} DT",
+                        en: "Save ${(_oldPrice! - _price).toStringAsFixed(2)} DT",
+                        ar: "توفير ${(_oldPrice! - _price).toStringAsFixed(2)} د.ت",
+                      ),
                       style: const TextStyle(
                         color: AppColors.bordeaux,
                         fontWeight: FontWeight.w700,
@@ -435,20 +451,28 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                     ),
                   ],
                   const SizedBox(height: 14),
-                  const Row(
+                  Row(
                     children: [
                       _InfoPill(
                           icon: Icons.local_shipping_outlined,
-                          text: "Livraison 24h"),
+                          text: tr3(context, fr: "Livraison 24h", en: "24h delivery", ar: "توصيل 24 ساعة")),
                       SizedBox(width: 10),
-                      _InfoPill(icon: Icons.verified_outlined, text: "Qualité"),
+                      _InfoPill(
+                        icon: Icons.verified_outlined,
+                        text: tr3(context, fr: "Qualité", en: "Quality", ar: "جودة"),
+                      ),
                     ],
                   ),
                   const SizedBox(height: 14),
                   _SectionCard(
-                    title: "Description",
+                    title: tr3(context, fr: "Description", en: "Description", ar: "الوصف"),
                     child: Text(
-                      _desc,
+                      localizeProductDescription(
+                        context,
+                        _desc,
+                        productName: _name,
+                        category: _product?.category,
+                      ),
                       style: const TextStyle(
                           color: AppColors.text,
                           fontWeight: FontWeight.w700,
@@ -457,11 +481,12 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                   ),
                   const SizedBox(height: 14),
                   _SectionCard(
-                    title: "Quantité",
+                    title: tr3(context, fr: "Quantité", en: "Quantity", ar: "الكمية"),
                     child: Row(
                       children: [
-                        const Text("Choisir",
-                            style: TextStyle(
+                        Text(
+                            tr3(context, fr: "Choisir", en: "Choose", ar: "اختر"),
+                            style: const TextStyle(
                                 fontWeight: FontWeight.w800,
                                 color: AppColors.muted)),
                         const Spacer(),
@@ -499,8 +524,8 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Text(
-                      "Total",
+                    Text(
+                      tr3(context, fr: "Total", en: "Total", ar: "الإجمالي"),
                       style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w700,
@@ -532,10 +557,24 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                             price: p.price,
                             qty: _quantity,
                           );
-                      _toastPremium("Ajouté au panier x$_quantity");
+                      _toastPremium(
+                        tr3(
+                          context,
+                          fr: "Ajouté au panier x$_quantity",
+                          en: "Added to cart x$_quantity",
+                          ar: "تمت الإضافة للسلة x$_quantity",
+                        ),
+                      );
                     },
                     icon: const Icon(Icons.add_shopping_cart_rounded),
-                    label: Text("Ajouter x$_quantity"),
+                    label: Text(
+                      tr3(
+                        context,
+                        fr: "Ajouter x$_quantity",
+                        en: "Add x$_quantity",
+                        ar: "إضافة x$_quantity",
+                      ),
+                    ),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.bordeaux,
                       foregroundColor: Colors.white,
@@ -552,6 +591,51 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _ProductDetailsSkeleton extends StatelessWidget {
+  const _ProductDetailsSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    Widget box({double h = 16, double w = double.infinity}) {
+      return Container(
+        height: h,
+        width: w,
+        decoration: BoxDecoration(
+          color: AppColors.soft,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: AppColors.border.withValues(alpha: 0.9)),
+        ),
+      );
+    }
+
+    return ListView(
+      physics: const NeverScrollableScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(16, 56, 16, 16),
+      children: [
+        box(h: 260),
+        const SizedBox(height: 14),
+        box(h: 18, w: 180),
+        const SizedBox(height: 10),
+        box(h: 14, w: 110),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(child: box(h: 58)),
+            const SizedBox(width: 10),
+            Expanded(child: box(h: 58)),
+          ],
+        ),
+        const SizedBox(height: 12),
+        box(h: 44),
+        const SizedBox(height: 8),
+        box(h: 44),
+        const SizedBox(height: 12),
+        box(h: 92),
+      ],
     );
   }
 }

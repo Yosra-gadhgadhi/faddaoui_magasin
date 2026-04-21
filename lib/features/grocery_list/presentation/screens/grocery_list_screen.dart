@@ -3547,6 +3547,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:elfaddoui_app/core/l10n/tr3.dart';
 
 import 'package:elfaddoui_app/core/theme/app_colors.dart';
 import 'package:elfaddoui_app/core/theme/app_text_styles.dart';
@@ -3598,13 +3599,13 @@ class _GroceryListViewState extends State<_GroceryListView> {
             bottom: MediaQuery.of(sheetContext).viewInsets.bottom,
           ),
           child: _ProSheet(
-            title: "Ajouter un item",
+            title: tr3(context, fr: "Ajouter un item", en: "Add an item", ar: "إضافة عنصر"),
             child: Column(
               children: [
                 TextField(
                   controller: c,
                   decoration: InputDecoration(
-                    hintText: "Ex: Lait, Pain, Pâtes...",
+                    hintText: tr3(context, fr: "Ex: Lait, Pain, Pâtes...", en: "Ex: Milk, Bread, Pasta...", ar: "مثال: حليب، خبز، معكرونة..."),
                     filled: true,
                     fillColor: AppColors.fieldFill,
                     border: OutlineInputBorder(
@@ -3634,8 +3635,8 @@ class _GroceryListViewState extends State<_GroceryListView> {
                       ),
                       elevation: 0,
                     ),
-                    child: const Text(
-                      "Ajouter",
+                    child: Text(
+                      tr3(context, fr: "Ajouter", en: "Add", ar: "إضافة"),
                       style: TextStyle(fontWeight: FontWeight.w900),
                     ),
                   ),
@@ -3658,7 +3659,7 @@ class _GroceryListViewState extends State<_GroceryListView> {
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         title: Text(
-          "📝 Liste de courses",
+          tr3(context, fr: "📝 Liste de courses", en: "📝 Grocery list", ar: "📝 قائمة المشتريات"),
           style: AppTextStyles.h3.copyWith(
             fontWeight: FontWeight.w900,
             color: AppColors.text,
@@ -3676,8 +3677,8 @@ class _GroceryListViewState extends State<_GroceryListView> {
                 borderRadius: BorderRadius.circular(14),
                 border: Border.all(color: AppColors.border),
               ),
-              child: const Text(
-                "Nettoyer",
+              child: Text(
+                tr3(context, fr: "Nettoyer", en: "Clean", ar: "تنظيف"),
                 style: TextStyle(
                   fontWeight: FontWeight.w900,
                   color: AppColors.bordeaux,
@@ -3726,7 +3727,7 @@ class _GroceryListViewState extends State<_GroceryListView> {
                       children: [
                         Expanded(
                           child: Text(
-                            "Progress",
+                            tr3(context, fr: "Progress", en: "Progress", ar: "التقدم"),
                             style: AppTextStyles.h3.copyWith(
                               fontWeight: FontWeight.w900,
                               color: AppColors.text,
@@ -3770,8 +3771,8 @@ class _GroceryListViewState extends State<_GroceryListView> {
               // Suggestions IA
               if (s.suggestions.isNotEmpty) ...[
                 _SectionHeader(
-                  title: "✨ Suggestions IA",
-                  actionText: "Tout ajouter",
+                  title: tr3(context, fr: "✨ Suggestions IA", en: "✨ AI suggestions", ar: "✨ اقتراحات الذكاء الاصطناعي"),
+                  actionText: tr3(context, fr: "Tout ajouter", en: "Add all", ar: "إضافة الكل"),
                   onAction: () {
                     for (final x in s.suggestions) {
                       context.read<GroceryListCubit>().addItem(x);
@@ -3822,8 +3823,8 @@ class _GroceryListViewState extends State<_GroceryListView> {
               ],
 
               _SectionHeader(
-                title: "Votre liste",
-                actionText: "Ajouter",
+                title: tr3(context, fr: "Votre liste", en: "Your list", ar: "قائمتك"),
+                actionText: tr3(context, fr: "Ajouter", en: "Add", ar: "إضافة"),
                 onAction: () => _openAdd(context),
               ),
               const SizedBox(height: 10),
@@ -3836,8 +3837,8 @@ class _GroceryListViewState extends State<_GroceryListView> {
                     borderRadius: BorderRadius.circular(18),
                     border: Border.all(color: AppColors.border),
                   ),
-                  child: const Text(
-                    "Votre liste est vide. Ajoutez des produits ✨",
+                  child: Text(
+                    tr3(context, fr: "Votre liste est vide. Ajoutez des produits ✨", en: "Your list is empty. Add products ✨", ar: "قائمتك فارغة. أضف منتجات ✨"),
                     style: TextStyle(
                       color: AppColors.muted,
                       fontWeight: FontWeight.w700,
@@ -3852,8 +3853,8 @@ class _GroceryListViewState extends State<_GroceryListView> {
                     borderRadius: BorderRadius.circular(18),
                     border: Border.all(color: AppColors.border),
                   ),
-                  child: const Text(
-                    "Aucun résultat pour cette recherche.",
+                  child: Text(
+                    tr3(context, fr: "Aucun résultat pour cette recherche.", en: "No results for this search.", ar: "لا توجد نتائج لهذا البحث."),
                     style: TextStyle(
                       color: AppColors.muted,
                       fontWeight: FontWeight.w700,
@@ -3936,8 +3937,8 @@ class _SearchBar extends StatelessWidget {
                 fontWeight: FontWeight.w800,
                 color: AppColors.text,
               ),
-              decoration: const InputDecoration(
-                hintText: "Rechercher dans la liste…",
+              decoration: InputDecoration(
+                hintText: tr3(context, fr: "Rechercher dans la liste…", en: "Search in list…", ar: "ابحث في القائمة…"),
                 hintStyle: TextStyle(
                   color: AppColors.muted,
                   fontWeight: FontWeight.w700,

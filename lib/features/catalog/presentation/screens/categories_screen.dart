@@ -1,8 +1,11 @@
 import 'package:elfaddoui_app/core/theme/app_colors.dart';
+import 'package:elfaddoui_app/core/l10n/app_localizations.dart';
+import 'package:elfaddoui_app/core/l10n/product_text_localizer.dart';
 import 'package:elfaddoui_app/core/theme/app_spacing.dart';
 import 'package:elfaddoui_app/core/widgets/icon_pill.dart';
 import 'package:elfaddoui_app/core/widgets/primary_card.dart';
 import 'package:elfaddoui_app/core/widgets/section_header.dart';
+import 'package:elfaddoui_app/core/widgets/empty_state_panel.dart';
 import 'package:elfaddoui_app/features/catalog/presentation/screens/category_products_screen.dart'
     hide Product;
 import 'package:elfaddoui_app/features/home/presentation/cubit/home_state.dart';
@@ -25,7 +28,6 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
   String? _error;
 
   int _filterIndex = 0;
-  final _filters = const ['Tous', 'Populaires', 'Promos', 'Bio', 'Nouveaux'];
   final _fixedCategoryKeys = const <String>[
     'electromenager',
     'tv multimedia',
@@ -111,7 +113,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
       setState(() {
         _all = _fallback();
         _loading = false;
-        _error = 'Serveur indisponible. Vérifie /api/home.';
+        _error = AppLocalizations.of(context).tr('categories_server_unavailable');
       });
       _applyFilters();
     }
@@ -313,7 +315,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
       return 'https://images.pexels.com/photos/5591838/pexels-photo-5591838.jpeg?auto=compress&cs=tinysrgb&w=1200';
     }
     if (key.contains('tv multimedia')) {
-      return 'https://images.pexels.com/photos/678257/pexels-photo-678257.jpeg?auto=compress&cs=tinysrgb&w=1200';
+      return 'https://images.pexels.com/photos/5825570/pexels-photo-5825570.jpeg?auto=compress&cs=tinysrgb&w=1200';
     }
     if (key.contains('cuisine vaisselle')) {
       return 'https://images.pexels.com/photos/4226805/pexels-photo-4226805.jpeg?auto=compress&cs=tinysrgb&w=1200';
@@ -414,7 +416,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
           key: 'tv multimedia',
           name: 'TV & Multimédia',
           image:
-              'https://images.pexels.com/photos/678257/pexels-photo-678257.jpeg?auto=compress&cs=tinysrgb&w=1200',
+              'https://images.pexels.com/photos/5825570/pexels-photo-5825570.jpeg?auto=compress&cs=tinysrgb&w=1200',
           count: 7,
           promoCount: 1,
           tags: ['Populaires'],
@@ -470,7 +472,11 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
   void _openCategory(_CategoryUi c) {
     HapticFeedback.selectionClick();
     Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => CategoryProductsScreen(categoryName: c.name)),
+      MaterialPageRoute(
+        builder: (_) => CategoryProductsScreen(
+          categoryName: localizeProductText(context, c.name),
+        ),
+      ),
     );
   }
 
@@ -480,11 +486,20 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
     final isEmpty = !_loading && _error == null && _view.isEmpty;
     final promoTotal = _view.fold<int>(0, (s, c) => s + c.promoCount);
 
+    final t = AppLocalizations.of(context);
+    final filters = <String>[
+      t.tr('common_all'),
+      t.tr('common_popular'),
+      t.tr('common_promos'),
+      t.tr('common_bio'),
+      t.tr('common_new'),
+    ];
+
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: Theme.of(context).colorScheme.surface,
       appBar: AppBar(
         toolbarHeight: 78,
-        backgroundColor: Colors.white,
+        backgroundColor: Theme.of(context).colorScheme.surface,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         shadowColor: Colors.transparent,
@@ -494,7 +509,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
         centerTitle: true,
         systemOverlayStyle: SystemUiOverlayStyle.dark,
         titleSpacing: 0,
-        title: const FittedBox(
+        title: FittedBox(
           fit: BoxFit.scaleDown,
           child: Row(
             mainAxisSize: MainAxisSize.min,
@@ -506,7 +521,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
               ),
               SizedBox(width: 8),
               Text(
-                'Catégories',
+                t.tr('nav_categories'),
                 style: TextStyle(
                   color: AppColors.bordeauxDark,
                   fontWeight: FontWeight.w800,
@@ -519,7 +534,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
         ),
         actions: [
           IconButton(
-            tooltip: 'Actualiser',
+            tooltip: t.tr('common_refresh'),
             onPressed: _load,
             icon: Container(
               width: 40,
@@ -551,15 +566,15 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
                       Padding(
                         padding: const EdgeInsets.fromLTRB(16, 10, 16, 8),
                         child: _CategoriesHero(
-                          title: 'Explorez vos catégories',
-                          subtitle: 'Trouvez vos produits plus vite, sans surcharge visuelle.',
+                          title: t.tr('categories_hero_title'),
+                          subtitle: t.tr('categories_hero_subtitle'),
                         ),
                       ),
                       Padding(
                         padding: const EdgeInsets.fromLTRB(16, 4, 16, 10),
                         child: _SearchField(
                           controller: _search,
-                          hint: 'Rechercher une catégorie…',
+                          hint: t.tr('categories_search_hint'),
                           onClear: () {
                             _search.clear();
                             _applyFilters();
@@ -579,7 +594,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
                               itemBuilder: (_, i) {
                                 final s = suggestions[i];
                                 return _SuggestionChip(
-                                  text: s,
+                                  text: localizeProductText(context, s),
                                   onTap: () {
                                     _search.text = s;
                                     _search.selection = TextSelection.collapsed(
@@ -594,7 +609,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
                       Padding(
                         padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
                         child: _HorizontalChips(
-                          labels: _filters,
+                          labels: filters,
                           selected: _filterIndex,
                           onTap: (i) {
                             setState(() => _filterIndex = i);
@@ -605,7 +620,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
                       Padding(
                         padding: const EdgeInsets.fromLTRB(16, 2, 16, 10),
                         child: SectionHeader(
-                          title: 'Toutes les catégories',
+                          title: t.tr('categories_all_title'),
                           trailing: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
@@ -616,7 +631,10 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
                               const SizedBox(width: 8),
                               _MiniStatChip(
                                 icon: Icons.local_offer_rounded,
-                                text: '$promoTotal promos',
+                                text: t.tr(
+                                  'common_promos_count',
+                                  params: {'count': '$promoTotal'},
+                                ),
                               ),
                             ],
                           ),
@@ -846,15 +864,16 @@ class _CategoryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context);
     final c = this.c;
     final tag = c.tags.contains('Promos')
-        ? 'Promos'
+        ? t.tr('common_promos')
         : c.tags.contains('Bio')
-            ? 'Bio'
+            ? t.tr('common_bio')
             : c.tags.contains('Nouveaux')
-                ? 'Nouveau'
+                ? t.tr('common_new')
                 : c.tags.contains('Populaires')
-                    ? 'Populaire'
+                    ? t.tr('common_popular')
                     : null;
 
     return InkWell(
@@ -918,7 +937,7 @@ class _CategoryCard extends StatelessWidget {
             ),
             const SizedBox(height: 10),
             Text(
-              c.name,
+              localizeProductText(context, c.name),
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(
@@ -930,7 +949,7 @@ class _CategoryCard extends StatelessWidget {
             ),
             const SizedBox(height: 4),
             Text(
-              '${c.count} produits',
+              t.tr('categories_products_count', params: {'count': '${c.count}'}),
               style: const TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
@@ -940,9 +959,9 @@ class _CategoryCard extends StatelessWidget {
             const Spacer(),
             Row(
               children: [
-                const Text(
-                  'Voir produits',
-                  style: TextStyle(
+                Text(
+                  t.tr('categories_view_products'),
+                  style: const TextStyle(
                     color: AppColors.bordeaux,
                     fontSize: 12,
                     fontWeight: FontWeight.w700,
@@ -1036,6 +1055,7 @@ class _CategoriesError extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context);
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
       children: [
@@ -1065,7 +1085,7 @@ class _CategoriesError extends StatelessWidget {
                       backgroundColor: AppColors.bordeaux,
                       foregroundColor: Colors.white,
                     ),
-                    child: const Text('Réessayer'),
+                    child: Text(t.tr('common_retry')),
                   ),
                 ],
               ),
@@ -1185,60 +1205,27 @@ class _EmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context);
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
       children: [
-        PrimaryCard(
-          padding: const EdgeInsets.all(18),
-          radius: AppRadius.lg,
-          borderAlpha: 0.70,
-          child: Column(
-            children: [
-              const Icon(Icons.search_off_rounded,
-                  color: AppColors.muted, size: 34),
-              const SizedBox(height: 10),
-              const Text(
-                'Aucune catégorie trouvée.',
-                style: TextStyle(
-                    fontWeight: FontWeight.w800, color: AppColors.text),
-              ),
-              const SizedBox(height: 6),
-              const Text(
-                'Essayez une autre recherche ou réinitialiser.',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                    fontWeight: FontWeight.w700, color: AppColors.muted),
-              ),
-              const SizedBox(height: 10),
-              const Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  _HintChip(text: 'lait'),
-                  _HintChip(text: 'fruit'),
-                  _HintChip(text: 'promo'),
-                ],
-              ),
-              const SizedBox(height: 12),
-              SizedBox(
-                height: 44,
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: onReset,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.bordeaux,
-                    foregroundColor: Colors.white,
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14)),
-                  ),
-                  child: const Text('Réinitialiser',
-                      style: TextStyle(fontWeight: FontWeight.w700)),
-                ),
-              ),
-            ],
-          ),
+        EmptyStatePanel(
+          icon: Icons.search_off_rounded,
+          title: t.tr('categories_empty_title'),
+          subtitle: t.tr('categories_empty_subtitle'),
+          primaryLabel: t.tr('common_clear'),
+          onPrimary: onReset,
+        ),
+        const SizedBox(height: 10),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            _HintChip(text: t.tr('categories_hint_milk')),
+            _HintChip(text: t.tr('categories_hint_fruit')),
+            _HintChip(text: t.tr('categories_hint_promo')),
+          ],
         ),
       ],
     );

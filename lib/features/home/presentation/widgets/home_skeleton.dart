@@ -1,12 +1,43 @@
 import 'package:flutter/material.dart';
+
 import 'package:elfaddoui_app/core/theme/app_colors.dart';
 
-class HomeSkeleton extends StatelessWidget {
+class HomeSkeleton extends StatefulWidget {
   const HomeSkeleton({super.key});
 
   @override
+  State<HomeSkeleton> createState() => _HomeSkeletonState();
+}
+
+class _HomeSkeletonState extends State<HomeSkeleton>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late final Animation<double> _pulse;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    )..repeat(reverse: true);
+    _pulse = Tween<double>(begin: 0.55, end: 1).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    Widget box({double h = 16, double w = double.infinity}) => Container(
+    Widget box({double h = 16, double w = double.infinity}) {
+      return FadeTransition(
+        opacity: _pulse,
+        child: Container(
           height: h,
           width: w,
           decoration: BoxDecoration(
@@ -14,7 +45,9 @@ class HomeSkeleton extends StatelessWidget {
             borderRadius: BorderRadius.circular(14),
             border: Border.all(color: AppColors.border),
           ),
-        );
+        ),
+      );
+    }
 
     return ListView(
       padding: const EdgeInsets.all(16),

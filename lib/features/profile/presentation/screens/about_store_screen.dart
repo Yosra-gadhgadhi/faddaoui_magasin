@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:elfaddoui_app/core/theme/app_colors.dart';
+import 'package:elfaddoui_app/core/l10n/tr3.dart';
 
 class AboutStoreScreen extends StatelessWidget {
   const AboutStoreScreen({super.key});
@@ -14,7 +15,16 @@ class AboutStoreScreen extends StatelessWidget {
     }
     if (!context.mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("Impossible d'ouvrir le lien.")),
+      SnackBar(
+        content: Text(
+          tr3(
+            context,
+            fr: "Impossible d'ouvrir le lien.",
+            en: "Unable to open link.",
+            ar: "تعذر فتح الرابط.",
+          ),
+        ),
+      ),
     );
   }
 
@@ -26,7 +36,16 @@ class AboutStoreScreen extends StatelessWidget {
     }
     if (!context.mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("Appel indisponible sur cet appareil.")),
+      SnackBar(
+        content: Text(
+          tr3(
+            context,
+            fr: "Appel indisponible sur cet appareil.",
+            en: "Call unavailable on this device.",
+            ar: "الاتصال غير متاح على هذا الجهاز.",
+          ),
+        ),
+      ),
     );
   }
 
@@ -41,15 +60,20 @@ class AboutStoreScreen extends StatelessWidget {
         elevation: 0,
         centerTitle: true,
         systemOverlayStyle: SystemUiOverlayStyle.dark,
-        title: const Row(
+        title: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.storefront_rounded,
+            const Icon(Icons.storefront_rounded,
                 size: 16, color: AppColors.bordeauxDark),
-            SizedBox(width: 8),
+            const SizedBox(width: 8),
             Text(
-              "Contact & À propos",
-              style: TextStyle(
+              tr3(
+                context,
+                fr: "Contact & À propos",
+                en: "Contact & About",
+                ar: "التواصل وحول المتجر",
+              ),
+              style: const TextStyle(
                 color: AppColors.bordeauxDark,
                 fontWeight: FontWeight.w800,
                 fontSize: 18,
@@ -61,28 +85,38 @@ class AboutStoreScreen extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
         children: [
-          const _CardLine(
+          _CardLine(
             icon: Icons.location_on_rounded,
-            title: "Adresse",
+            title: tr3(context, fr: "Adresse", en: "Address", ar: "العنوان"),
             value: "Tunis Centre, Rue Habib Bourguiba",
           ),
           const SizedBox(height: 10),
-          const _CardLine(
+          _CardLine(
             icon: Icons.schedule_rounded,
-            title: "Horaires",
-            value: "Lun - Sam: 08:00 - 22:00",
+            title: tr3(context, fr: "Horaires", en: "Hours", ar: "ساعات العمل"),
+            value: tr3(
+              context,
+              fr: "Lun - Sam: 08:00 - 22:00",
+              en: "Mon - Sat: 08:00 - 22:00",
+              ar: "الإثنين - السبت: 08:00 - 22:00",
+            ),
           ),
           const SizedBox(height: 10),
           _CardButton(
             icon: Icons.phone_rounded,
-            title: "Téléphone",
+            title: tr3(context, fr: "Téléphone", en: "Phone", ar: "الهاتف"),
             value: "+216 71 000 111",
             onTap: () => _call(context, "+216 71 000 111"),
           ),
           const SizedBox(height: 10),
           _CardButton(
             icon: Icons.map_rounded,
-            title: "Ouvrir sur la map",
+            title: tr3(
+              context,
+              fr: "Ouvrir sur la map",
+              en: "Open in map",
+              ar: "فتح في الخريطة",
+            ),
             value: "Google Maps",
             onTap: () => _openUrl(
               context,
@@ -92,7 +126,12 @@ class AboutStoreScreen extends StatelessWidget {
           const SizedBox(height: 10),
           _CardButton(
             icon: Icons.public_rounded,
-            title: "Réseaux sociaux",
+            title: tr3(
+              context,
+              fr: "Réseaux sociaux",
+              en: "Social media",
+              ar: "وسائل التواصل",
+            ),
             value: "@elfaddoui_market",
             onTap: () => _openUrl(context, "https://instagram.com"),
           ),
@@ -104,9 +143,14 @@ class AboutStoreScreen extends StatelessWidget {
               borderRadius: BorderRadius.circular(16),
               border: Border.all(color: AppColors.bordeaux.withValues(alpha: 0.16)),
             ),
-            child: const Text(
-              "ElFaddaoui est votre marché de proximité: prix justes, livraison rapide et service client réactif.",
-              style: TextStyle(
+            child: Text(
+              tr3(
+                context,
+                fr: "ElFaddaoui est votre marché de proximité: prix justes, livraison rapide et service client réactif.",
+                en: "ElFaddaoui is your local market: fair prices, fast delivery, and responsive customer service.",
+                ar: "ElFaddaoui هو متجرك القريب: أسعار مناسبة، توصيل سريع، وخدمة حِرفية.",
+              ),
+              style: const TextStyle(
                 fontWeight: FontWeight.w700,
                 color: AppColors.text,
               ),

@@ -2,6 +2,7 @@ import 'package:elfaddoui_app/features/checkout/domain/entities/heckout_data.dar
 import 'package:elfaddoui_app/features/checkout/domain/widgets/checkout_widgets.dart';
 import 'package:flutter/material.dart';
 import 'package:elfaddoui_app/core/theme/app_colors.dart';
+import 'package:elfaddoui_app/core/l10n/tr3.dart';
 
 import 'checkout_step3_payment.dart';
 
@@ -56,7 +57,9 @@ class _CheckoutStep2AddressState extends State<CheckoutStep2Address> {
   }
 
   String? _req(String? v) =>
-      (v == null || v.trim().isEmpty) ? "Champ obligatoire" : null;
+      (v == null || v.trim().isEmpty)
+          ? tr3(context, fr: "Champ obligatoire", en: "Required field", ar: "حقل إجباري")
+          : null;
 
   void _next() {
     if (!_formKey.currentState!.validate()) return;
@@ -92,7 +95,7 @@ class _CheckoutStep2AddressState extends State<CheckoutStep2Address> {
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         centerTitle: true,
-        title: const Text("Adresse",
+        title: Text(tr3(context, fr: "Adresse", en: "Address", ar: "العنوان"),
           style: TextStyle(
             fontWeight: FontWeight.w800,
             fontSize: 18,
@@ -101,9 +104,9 @@ class _CheckoutStep2AddressState extends State<CheckoutStep2Address> {
         ),
       ),
       bottomNavigationBar: CheckoutBottomBar(
-        primaryText: "Continuer",
+        primaryText: tr3(context, fr: "Continuer", en: "Continue", ar: "متابعة"),
         onPrimary: _next,
-        secondaryText: "Retour",
+        secondaryText: tr3(context, fr: "Retour", en: "Back", ar: "رجوع"),
         onSecondary: () => Navigator.pop(context),
       ),
       body: Form(
@@ -115,8 +118,8 @@ class _CheckoutStep2AddressState extends State<CheckoutStep2Address> {
             const SizedBox(height: 12),
 
             // ===== HEADER (minimal) =====
-            const Text(
-              "Adresse de livraison",
+            Text(
+              tr3(context, fr: "Adresse de livraison", en: "Delivery address", ar: "عنوان التوصيل"),
               style: TextStyle(
                 fontWeight: FontWeight.w900,
                 fontSize: 18,
@@ -124,8 +127,13 @@ class _CheckoutStep2AddressState extends State<CheckoutStep2Address> {
               ),
             ),
             const SizedBox(height: 4),
-            const Text(
-              "Indiquez l’adresse exacte pour une livraison rapide.",
+            Text(
+              tr3(
+                context,
+                fr: "Indiquez l’adresse exacte pour une livraison rapide.",
+                en: "Provide the exact address for fast delivery.",
+                ar: "أدخل العنوان بدقة لتوصيل سريع.",
+              ),
               style: TextStyle(
                 fontWeight: FontWeight.w600,
                 color: AppColors.muted,
@@ -135,7 +143,7 @@ class _CheckoutStep2AddressState extends State<CheckoutStep2Address> {
             const SizedBox(height: 16),
 
             // ✅ SECTION TITLE خارج الكارد
-            const _SectionTitle("Type de lieu"),
+            _SectionTitle(tr3(context, fr: "Type de lieu", en: "Place type", ar: "نوع المكان")),
             const SizedBox(height: 10),
 
             // ===== PLACE TYPE CARD (soft) =====
@@ -154,7 +162,7 @@ class _CheckoutStep2AddressState extends State<CheckoutStep2Address> {
 
             const SizedBox(height: 18),
 
-            const _SectionTitle("Détails de l’adresse"),
+            _SectionTitle(tr3(context, fr: "Détails de l’adresse", en: "Address details", ar: "تفاصيل العنوان")),
             const SizedBox(height: 10),
 
             // ===== ADDRESS CARD (fields only) =====
@@ -162,37 +170,37 @@ class _CheckoutStep2AddressState extends State<CheckoutStep2Address> {
               child: Column(
                 children: [
                   CheckoutField(
-                    label: "Ville / Gouvernorat *",
-                    hint: "Ville ou gouvernorat",
+                    label: tr3(context, fr: "Ville / Gouvernorat *", en: "City / Governorate *", ar: "المدينة / الولاية *"),
+                    hint: tr3(context, fr: "Ville ou gouvernorat", en: "City or governorate", ar: "المدينة أو الولاية"),
                     controller: _city,
                     validator: _req,
                   ),
                   CheckoutField(
-                    label: "Zone / Délégation *",
-                    hint: "Zone ou délégation",
+                    label: tr3(context, fr: "Zone / Délégation *", en: "Area / District *", ar: "المنطقة / المعتمدية *"),
+                    hint: tr3(context, fr: "Zone ou délégation", en: "Area or district", ar: "المنطقة أو المعتمدية"),
                     controller: _area,
                     validator: _req,
                   ),
                   CheckoutField(
-                    label: "Rue / Résidence *",
-                    hint: "Rue, résidence, lotissement…",
+                    label: tr3(context, fr: "Rue / Résidence *", en: "Street / Residence *", ar: "الشارع / الإقامة *"),
+                    hint: tr3(context, fr: "Rue, résidence, lotissement…", en: "Street, residence, block…", ar: "الشارع، الإقامة، التجزئة…"),
                     controller: _street,
                     validator: _req,
                   ),
                   CheckoutField(
-                    label: "Immeuble / Étage / Appartement (optionnel)",
-                    hint: "Bâtiment, étage, appartement…",
+                    label: tr3(context, fr: "Immeuble / Étage / Appartement (optionnel)", en: "Building / Floor / Apartment (optional)", ar: "العمارة / الطابق / الشقة (اختياري)"),
+                    hint: tr3(context, fr: "Bâtiment, étage, appartement…", en: "Building, floor, apartment…", ar: "العمارة، الطابق، الشقة…"),
                     controller: _extra,
                   ),
                   CheckoutField(
-                    label: "Code postal (optionnel)",
-                    hint: "Code postal",
+                    label: tr3(context, fr: "Code postal (optionnel)", en: "Postal code (optional)", ar: "الرمز البريدي (اختياري)"),
+                    hint: tr3(context, fr: "Code postal", en: "Postal code", ar: "الرمز البريدي"),
                     controller: _postal,
                     keyboardType: TextInputType.number,
                   ),
                   CheckoutField(
-                    label: "Repère (optionnel)",
-                    hint: "Repère pour faciliter la livraison",
+                    label: tr3(context, fr: "Repère (optionnel)", en: "Landmark (optional)", ar: "معلم قريب (اختياري)"),
+                    hint: tr3(context, fr: "Repère pour faciliter la livraison", en: "Landmark to help delivery", ar: "معلم لتسهيل التوصيل"),
                     controller: _hint,
                     maxLines: 2,
                   ),

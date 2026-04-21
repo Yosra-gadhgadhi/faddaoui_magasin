@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:elfaddoui_app/core/l10n/tr3.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/primary_button.dart';
 import '../../../../app/routes.dart';
@@ -83,8 +84,8 @@ class _OtpScreenState extends State<OtpScreen> {
           onPressed: () => Navigator.pop(context),
         ),
         centerTitle: true,
-        title: const Text(
-          "Code OTP",
+        title: Text(
+          tr3(context, fr: "Code OTP", en: "OTP Code", ar: "رمز OTP"),
           style: TextStyle(
             color: AppColors.bordeaux,
             fontSize: 18,
@@ -125,8 +126,8 @@ class _OtpScreenState extends State<OtpScreen> {
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    const Text(
-                                      "Vérification",
+                                    Text(
+                                      tr3(context, fr: "Vérification", en: "Verification", ar: "التحقق"),
                                       style: TextStyle(
                                         fontSize: 18,
                                         fontWeight: FontWeight.w900,
@@ -135,7 +136,7 @@ class _OtpScreenState extends State<OtpScreen> {
                                     ),
                                     const SizedBox(height: 3),
                                     Text(
-                                      "Code envoyé à $email",
+                                      tr3(context, fr: "Code envoyé à $email", en: "Code sent to $email", ar: "تم إرسال الرمز إلى $email"),
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
                                       style: const TextStyle(
@@ -169,8 +170,8 @@ class _OtpScreenState extends State<OtpScreen> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.stretch,
                               children: [
-                                const Text(
-                                  "Entrez le code à 6 chiffres",
+                                Text(
+                                  tr3(context, fr: "Entrez le code à 6 chiffres", en: "Enter the 6-digit code", ar: "أدخل الرمز المكوّن من 6 أرقام"),
                                   style: TextStyle(
                                     fontSize: 15,
                                     fontWeight: FontWeight.w800,
@@ -192,10 +193,10 @@ class _OtpScreenState extends State<OtpScreen> {
                                 ),
 
                                 if (otpError)
-                                  const Padding(
+                                  Padding(
                                     padding: EdgeInsets.only(top: 8),
                                     child: Text(
-                                      "Code invalide. Vérifiez les 6 chiffres.",
+                                      tr3(context, fr: "Code invalide. Vérifiez les 6 chiffres.", en: "Invalid code. Check the 6 digits.", ar: "رمز غير صالح. تحقق من الأرقام الستة."),
                                       style: TextStyle(
                                         color: AppColors.bordeaux,
                                         fontSize: 12,
@@ -207,7 +208,7 @@ class _OtpScreenState extends State<OtpScreen> {
                                 const SizedBox(height: 16),
 
                                 PrimaryButton(
-                                  text: "Vérifier",
+                                  text: tr3(context, fr: "Vérifier", en: "Verify", ar: "تحقق"),
                                   onPressed: () => _verify(email),
                                   height: 48,
                                   radius: 16,
@@ -218,8 +219,8 @@ class _OtpScreenState extends State<OtpScreen> {
                                 Center(
                                   child: GestureDetector(
                                     onTap: _resend,
-                                    child: const Text(
-                                      "Renvoyer le code",
+                                    child: Text(
+                                      tr3(context, fr: "Renvoyer le code", en: "Resend code", ar: "إعادة إرسال الرمز"),
                                       style: TextStyle(
                                         color: AppColors.bordeaux,
                                         fontSize: 13,

@@ -65,46 +65,52 @@ class SectionHeader extends StatelessWidget {
       );
     }
 
-    return Row(
-      children: [
-        Container(
-          width: 4,
-          height: 18,
-          margin: const EdgeInsets.only(right: 8),
-          decoration: BoxDecoration(
-            color: AppColors.bordeaux,
-            borderRadius: BorderRadius.circular(99),
-          ),
-        ),
-        Expanded(
-          child: Text(
-            title,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w800,
-              color: AppColors.text,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final rightMaxWidth = constraints.maxWidth * 0.45;
+        return Row(
+          children: [
+            Container(
+              width: 4,
+              height: 18,
+              margin: const EdgeInsets.only(right: 8),
+              decoration: BoxDecoration(
+                color: AppColors.bordeaux,
+                borderRadius: BorderRadius.circular(99),
+              ),
             ),
-          ),
-        ),
-        if (rightWidgets.isNotEmpty) ...[
-          const SizedBox(width: 8),
-          Flexible(
-            child: Align(
-              alignment: Alignment.centerRight,
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                clipBehavior: Clip.hardEdge,
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: rightWidgets,
+            Expanded(
+              child: Text(
+                title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.text,
                 ),
               ),
             ),
-          ),
-        ],
-      ],
+            if (rightWidgets.isNotEmpty) ...[
+              const SizedBox(width: 8),
+              SizedBox(
+                width: rightMaxWidth,
+                child: Align(
+                  alignment: Alignment.centerRight,
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    clipBehavior: Clip.hardEdge,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: rightWidgets,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ],
+        );
+      },
     );
   }
 }

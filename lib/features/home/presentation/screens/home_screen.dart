@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import 'package:elfaddoui_app/core/l10n/app_localizations.dart';
+import 'package:elfaddoui_app/core/l10n/product_text_localizer.dart';
 import 'package:elfaddoui_app/core/theme/app_colors.dart';
 import 'package:elfaddoui_app/core/theme/app_spacing.dart';
 import 'package:elfaddoui_app/core/theme/app_text_styles.dart';
@@ -17,12 +19,30 @@ import 'package:elfaddoui_app/features/catalog/presentation/screens/categories_s
 import 'package:elfaddoui_app/features/catalog/presentation/screens/category_products_screen.dart'
     show CategoryProductsScreen;
 import 'package:elfaddoui_app/features/profile/presentation/screens/profile_screen.dart';
+import 'package:elfaddoui_app/features/profile/presentation/screens/loyalty_card_screen.dart';
 
 import 'package:elfaddoui_app/features/home/services/ai_home_service.dart';
 import 'package:elfaddoui_app/features/catalog/presentation/screens/product_details_screen.dart';
 
 import '../cubit/home_cubit.dart';
 import '../cubit/home_state.dart';
+
+String _htr(
+  BuildContext context, {
+  required String fr,
+  required String en,
+  required String ar,
+}) {
+  final code = AppLocalizations.of(context).locale.languageCode;
+  switch (code) {
+    case 'en':
+      return en;
+    case 'ar':
+      return ar;
+    default:
+      return fr;
+  }
+}
 
 /* ===================== DEBOUNCER ===================== */
 
@@ -88,7 +108,6 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  static const _bg = Colors.white;
   static const _categories = <String>[
     "Tous",
     "Épicerie",
@@ -106,6 +125,7 @@ class _HomeScreenState extends State<HomeScreen> {
   String _selectedCategory = "Tous";
   String _selectedSort = "Popularité";
   String _searchQuery = "";
+  bool _isDeliveryMode = true;
   bool _promoOnly = false;
   bool _showAdvancedFilters = false;
   double _maxPrice = 100;
@@ -114,6 +134,48 @@ class _HomeScreenState extends State<HomeScreen> {
   Timer? _flashTimer;
   late final _Debouncer _searchDebouncer;
   late DateTime _flashEndsAt;
+
+  String _localizedCategoryLabel(BuildContext context, String category) {
+    final t = AppLocalizations.of(context);
+    switch (category) {
+      case 'Tous':
+        return t.tr('common_all');
+      case 'Épicerie':
+        return t.tr('category_grocery');
+      case 'Boissons':
+        return t.tr('category_drinks');
+      case 'Snacks':
+        return t.tr('category_snacks');
+      case 'Fruits':
+        return t.tr('category_fruits');
+      case 'Maison':
+        return t.tr('category_home');
+      default:
+        return category;
+    }
+  }
+
+  String _localizedSortLabel(BuildContext context, String sort) {
+    switch (sort) {
+      case "Popularité":
+        return _htr(
+          context,
+          fr: "Popularité",
+          en: "Popularity",
+          ar: "الأكثر رواجًا",
+        );
+      case "Prix ↑":
+        return _htr(context, fr: "Prix ↑", en: "Price ↑", ar: "السعر ↑");
+      case "Prix ↓":
+        return _htr(context, fr: "Prix ↓", en: "Price ↓", ar: "السعر ↓");
+      case "Promo":
+        return AppLocalizations.of(context).tr('common_promo');
+      case "Note":
+        return _htr(context, fr: "Note", en: "Rating", ar: "التقييم");
+      default:
+        return sort;
+    }
+  }
 
   @override
   void initState() {
@@ -173,6 +235,13 @@ class _HomeScreenState extends State<HomeScreen> {
     HapticFeedback.lightImpact();
     Navigator.of(context).push(
       MaterialPageRoute(builder: (_) => const CategoriesScreen()),
+    );
+  }
+
+  void _openLoyaltyCard() {
+    HapticFeedback.lightImpact();
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const LoyaltyCardScreen()),
     );
   }
 
@@ -259,7 +328,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _pickCategory() async {
     final selected = await showModalBottomSheet<String>(
       context: context,
-      backgroundColor: Colors.white,
+      backgroundColor: Theme.of(context).colorScheme.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -268,7 +337,7 @@ class _HomeScreenState extends State<HomeScreen> {
         children: _categories
             .map(
               (c) => ListTile(
-                title: Text(c),
+                title: Text(_localizedCategoryLabel(context, c)),
                 trailing: c == _selectedCategory
                     ? const Icon(Icons.check_rounded, color: AppColors.bordeaux)
                     : null,
@@ -290,7 +359,7 @@ class _HomeScreenState extends State<HomeScreen> {
     const options = ["Popularité", "Prix ↑", "Prix ↓", "Promo", "Note"];
     final selected = await showModalBottomSheet<String>(
       context: context,
-      backgroundColor: Colors.white,
+      backgroundColor: Theme.of(context).colorScheme.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -299,7 +368,7 @@ class _HomeScreenState extends State<HomeScreen> {
         children: options
             .map(
               (o) => ListTile(
-                title: Text(o),
+                title: Text(_localizedSortLabel(context, o)),
                 trailing: o == _selectedSort
                     ? const Icon(Icons.check_rounded, color: AppColors.bordeaux)
                     : null,
@@ -321,7 +390,7 @@ class _HomeScreenState extends State<HomeScreen> {
     double draft = _maxPrice;
     final selected = await showModalBottomSheet<double>(
       context: context,
-      backgroundColor: Colors.white,
+      backgroundColor: Theme.of(context).colorScheme.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -333,7 +402,14 @@ class _HomeScreenState extends State<HomeScreen> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text("Prix max: ${draft.toStringAsFixed(0)} DT"),
+                Text(
+                  _htr(
+                    context,
+                    fr: "Prix max: ${draft.toStringAsFixed(0)} DT",
+                    en: "Max price: ${draft.toStringAsFixed(0)} DT",
+                    ar: "أقصى سعر: ${draft.toStringAsFixed(0)} د.ت",
+                  ),
+                ),
                 Slider(
                   value: draft,
                   min: 5,
@@ -349,7 +425,14 @@ class _HomeScreenState extends State<HomeScreen> {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.bordeaux,
                     ),
-                    child: const Text("Appliquer"),
+                    child: Text(
+                      _htr(
+                        context,
+                        fr: "Appliquer",
+                        en: "Apply",
+                        ar: "تطبيق",
+                      ),
+                    ),
                   ),
                 ),
               ],
@@ -437,7 +520,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return BlocProvider.value(
       value: _cubit,
       child: Scaffold(
-        backgroundColor: _bg,
+        backgroundColor: Theme.of(context).colorScheme.surface,
 
         body: BlocBuilder<HomeCubit, HomeState>(
           builder: (context, s) {
@@ -467,7 +550,14 @@ class _HomeScreenState extends State<HomeScreen> {
                           backgroundColor: AppColors.bordeaux,
                           foregroundColor: Colors.white,
                         ),
-                        child: const Text("Réessayer"),
+                        child: Text(
+                          _htr(
+                            context,
+                            fr: "Réessayer",
+                            en: "Retry",
+                            ar: "إعادة المحاولة",
+                          ),
+                        ),
                       ),
                     ],
                   ),
@@ -480,6 +570,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ...s.recent,
             ];
             final filteredProducts = _applyFilters(shopProducts);
+            final t = AppLocalizations.of(context);
             final promoResultsCount =
                 filteredProducts.where((p) => (p.discountPct ?? 0) > 0).length;
             final activeFiltersCount = (_selectedCategory != "Tous" ? 1 : 0) +
@@ -510,10 +601,10 @@ class _HomeScreenState extends State<HomeScreen> {
                   SliverToBoxAdapter(
                     child: Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: _EntranceReveal(
-                        delayMs: 40,
-                        child: _SearchBarFine(
-                          hint: "Rechercher un produit, une marque...",
+                        child: _EntranceReveal(
+                          delayMs: 40,
+                          child: _SearchBarFine(
+                          hint: t.tr('home_search_hint'),
                           onTap: () {
                             HapticFeedback.lightImpact();
                             Navigator.of(context).push(
@@ -535,9 +626,9 @@ class _HomeScreenState extends State<HomeScreen> {
                         onTap: () {
                           HapticFeedback.lightImpact();
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
+                            SnackBar(
                               content: Text(
-                                "Changement de localisation bientôt disponible.",
+                                t.tr('home_location_change_soon'),
                               ),
                             ),
                           );
@@ -547,9 +638,84 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   SliverToBoxAdapter(
                     child: Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+                      child: _ShoppingModeSegment(
+                        isDelivery: _isDeliveryMode,
+                        onChanged: (value) =>
+                            setState(() => _isDeliveryMode = value),
+                      ),
+                    ),
+                  ),
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 10, 16, 2),
+                      child: _QuickAccessCards(
+                        onTapLoyalty: _openLoyaltyCard,
+                        onTapScan: () => _openCategoryProducts(
+                          _htr(
+                            context,
+                            fr: "Épicerie",
+                            en: "Grocery",
+                            ar: "بقالة",
+                          ),
+                        ),
+                        onTapCoupons: _scrollToDeals,
+                        onTapGifts: () => _openAllCategories(),
+                      ),
+                    ),
+                  ),
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                      child: _SectionHeader(
+                        title: _htr(
+                          context,
+                          fr: "En ce moment",
+                          en: "Right now",
+                          ar: "الآن",
+                        ),
+                      ),
+                    ),
+                  ),
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+                      child: _NowPromoStrip(
+                        onTapBanner: _scrollToDeals,
+                      ),
+                    ),
+                  ),
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                      child: _SectionHeader(
+                        title: _htr(
+                          context,
+                          fr: "Catalogues",
+                          en: "Catalogs",
+                          ar: "الكتالوجات",
+                        ),
+                        onTap: _openAllCategories,
+                        actionIcon: Icons.menu_book_rounded,
+                      ),
+                    ),
+                  ),
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+                      child: _CatalogCardsStrip(
+                        onTapCard: _openAllCategories,
+                      ),
+                    ),
+                  ),
+                  SliverToBoxAdapter(
+                    child: Padding(
                       padding: const EdgeInsets.fromLTRB(16, 10, 16, 2),
                       child: _MoodHeroPanel(
-                        category: _selectedCategory,
+                        category: _localizedCategoryLabel(
+                          context,
+                          _selectedCategory,
+                        ),
                         flashLeft: _flashLeftLabel,
                         onTapPrimary: _scrollToDeals,
                         onTapSecondary: _pickCategory,
@@ -632,8 +798,11 @@ class _HomeScreenState extends State<HomeScreen> {
                       child: _HomeMiniSummary(
                         productsCount: filteredProducts.length,
                         promoCount: promoResultsCount,
-                        category: _selectedCategory,
-                        sortLabel: _selectedSort,
+                        category: _localizedCategoryLabel(
+                          context,
+                          _selectedCategory,
+                        ),
+                        sortLabel: _localizedSortLabel(context, _selectedSort),
                       ),
                     ),
                   ),
@@ -642,7 +811,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     child: Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
                       child: _SectionHeader(
-                        title: "Catégories populaires",
+                        title: t.tr('home_popular_categories'),
                         onTap: _openAllCategories,
                         actionIcon: Icons.grid_view_rounded,
                       ),
@@ -670,8 +839,11 @@ class _HomeScreenState extends State<HomeScreen> {
                     child: Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
                       child: _SectionHeader(
-                        title: "Produits",
-                        subtitle: "${filteredProducts.length} résultats",
+                        title: t.tr('home_products'),
+                        subtitle: t.tr(
+                          'common_results_count',
+                          params: {'count': '${filteredProducts.length}'},
+                        ),
                       ),
                     ),
                   ),
@@ -719,7 +891,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
                         child: OutlinedButton(
                           onPressed: () => setState(() => _visibleCount += 4),
-                          child: const Text("Charger plus"),
+                          child: Text(t.tr('common_load_more')),
                         ),
                       ),
                     ),
@@ -751,6 +923,7 @@ class _HomeMiniSummary extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
@@ -765,12 +938,18 @@ class _HomeMiniSummary extends StatelessWidget {
           children: [
             _HomeStatPill(
               icon: Icons.inventory_2_rounded,
-              text: '$productsCount résultats',
+              text: t.tr(
+                'common_results_count',
+                params: {'count': '$productsCount'},
+              ),
             ),
             const SizedBox(width: 8),
             _HomeStatPill(
               icon: Icons.local_offer_rounded,
-              text: '$promoCount promos',
+              text: t.tr(
+                'common_promos_count',
+                params: {'count': '$promoCount'},
+              ),
             ),
             const SizedBox(width: 8),
             _HomeStatPill(
@@ -850,16 +1029,26 @@ class _WelcomeCardFine extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  "Bonjour 👋",
+                  _htr(
+                    context,
+                    fr: "Bonjour 👋",
+                    en: "Hello 👋",
+                    ar: "مرحبًا 👋",
+                  ),
                   style: AppTextStyles.h3.copyWith(
                     fontWeight: FontWeight.w800,
                     color: AppColors.text,
                   ),
                 ),
                 const SizedBox(height: 4),
-                const Text(
-                  "Que voulez-vous cuisiner aujourd’hui ?",
-                  style: TextStyle(
+                Text(
+                  _htr(
+                    context,
+                    fr: "Que voulez-vous cuisiner aujourd’hui ?",
+                    en: "What would you like to cook today?",
+                    ar: "ماذا تريد أن تطبخ اليوم؟",
+                  ),
+                  style: const TextStyle(
                     color: AppColors.muted,
                     fontWeight: FontWeight.w700,
                     fontSize: 12.5,
@@ -915,23 +1104,57 @@ class _StoreHeroCarouselState extends State<_StoreHeroCarousel>
   int get _loopInitialPage => _loopBasePage - (_loopBasePage % _slides.length);
 
   List<(String, String, String)> get _slides {
+    final context = this.context;
     final hour = DateTime.now().hour;
     final timeLabel = hour < 12
-        ? "matin"
+        ? _htr(context, fr: "matin", en: "morning", ar: "الصباح")
         : hour < 18
-            ? "après-midi"
-            : "soir";
+            ? _htr(context, fr: "après-midi", en: "afternoon", ar: "بعد الظهر")
+            : _htr(context, fr: "soir", en: "evening", ar: "المساء");
     final catLabel = widget.selectedCategory == "Tous"
-        ? "nos catégories"
+        ? _htr(context, fr: "nos catégories", en: "our categories", ar: "فئاتنا")
         : widget.selectedCategory.toLowerCase();
     return [
       (
-        "Sélection $timeLabel",
-        "${widget.promoCount} promos actives sur $catLabel",
-        "Voir les offres"
+        _htr(
+          context,
+          fr: "Sélection $timeLabel",
+          en: "$timeLabel selection",
+          ar: "اختيار $timeLabel",
+        ),
+        _htr(
+          context,
+          fr: "${widget.promoCount} promos actives sur $catLabel",
+          en: "${widget.promoCount} active promos on $catLabel",
+          ar: "${widget.promoCount} عروض مفعلة على $catLabel",
+        ),
+        _htr(context, fr: "Voir les offres", en: "View offers", ar: "عرض العروض")
       ),
-      ("Prix malins", "Tri intelligent: promo, prix, note", "Filtrer"),
-      ("Livraison express", "Commande fluide et rapide", "Commander"),
+      (
+        _htr(context, fr: "Prix malins", en: "Smart prices", ar: "أسعار ذكية"),
+        _htr(
+          context,
+          fr: "Tri intelligent: promo, prix, note",
+          en: "Smart sorting: promo, price, rating",
+          ar: "ترتيب ذكي: عرض، سعر، تقييم",
+        ),
+        _htr(context, fr: "Filtrer", en: "Filter", ar: "فلترة"),
+      ),
+      (
+        _htr(
+          context,
+          fr: "Livraison express",
+          en: "Express delivery",
+          ar: "توصيل سريع",
+        ),
+        _htr(
+          context,
+          fr: "Commande fluide et rapide",
+          en: "Smooth and fast ordering",
+          ar: "طلب سريع وسلس",
+        ),
+        _htr(context, fr: "Commander", en: "Order", ar: "اطلب"),
+      ),
     ];
   }
 
@@ -1243,6 +1466,300 @@ class _LocationEtaPill extends StatelessWidget {
   }
 }
 
+class _ShoppingModeSegment extends StatelessWidget {
+  final bool isDelivery;
+  final ValueChanged<bool> onChanged;
+
+  const _ShoppingModeSegment({
+    required this.isDelivery,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    Widget item({
+      required bool selected,
+      required String label,
+      required VoidCallback onTap,
+    }) {
+      return Expanded(
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: onTap,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 150),
+            height: 42,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: selected
+                  ? AppColors.bordeaux.withValues(alpha: 0.11)
+                  : Colors.transparent,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: selected
+                    ? AppColors.bordeaux.withValues(alpha: 0.25)
+                    : Colors.transparent,
+              ),
+            ),
+            child: Text(
+              label,
+              style: TextStyle(
+                color: selected ? AppColors.bordeauxDark : AppColors.text,
+                fontWeight: FontWeight.w800,
+                fontSize: 13.4,
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: AppSurface.card(radius: 14, borderAlpha: 0.85),
+      child: Row(
+        children: [
+          item(
+            selected: isDelivery,
+            label: _htr(
+              context,
+              fr: "Drive & Livraison",
+              en: "Pickup & Delivery",
+              ar: "استلام وتوصيل",
+            ),
+            onTap: () => onChanged(true),
+          ),
+          item(
+            selected: !isDelivery,
+            label: _htr(
+              context,
+              fr: "Magasin",
+              en: "Store",
+              ar: "المتجر",
+            ),
+            onTap: () => onChanged(false),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _QuickAccessCards extends StatelessWidget {
+  final VoidCallback onTapLoyalty;
+  final VoidCallback onTapScan;
+  final VoidCallback onTapCoupons;
+  final VoidCallback onTapGifts;
+
+  const _QuickAccessCards({
+    required this.onTapLoyalty,
+    required this.onTapScan,
+    required this.onTapCoupons,
+    required this.onTapGifts,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final items = [
+      (
+        icon: Icons.workspace_premium_rounded,
+        label: _htr(context, fr: "Ma carte", en: "My card", ar: "بطاقتي"),
+        onTap: onTapLoyalty,
+      ),
+      (
+        icon: Icons.qr_code_scanner_rounded,
+        label: _htr(context, fr: "Scan prix", en: "Scan price", ar: "مسح السعر"),
+        onTap: onTapScan,
+      ),
+      (
+        icon: Icons.receipt_long_rounded,
+        label: _htr(context, fr: "Mes bons", en: "My vouchers", ar: "قسائمي"),
+        onTap: onTapCoupons,
+      ),
+      (
+        icon: Icons.card_giftcard_rounded,
+        label: _htr(context, fr: "Mes cadeaux", en: "My gifts", ar: "هداياي"),
+        onTap: onTapGifts,
+      ),
+    ];
+
+    return SizedBox(
+      height: 90,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: items.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 10),
+        itemBuilder: (_, i) {
+          final item = items[i];
+          return InkWell(
+            borderRadius: BorderRadius.circular(14),
+            onTap: item.onTap,
+            child: Container(
+              width: 122,
+              padding: const EdgeInsets.fromLTRB(12, 12, 12, 10),
+              decoration: AppSurface.card(radius: 14, borderAlpha: 0.86),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    height: 30,
+                    width: 30,
+                    decoration: BoxDecoration(
+                      color: AppColors.bordeaux.withValues(alpha: 0.10),
+                      borderRadius: BorderRadius.circular(9),
+                    ),
+                    child: Icon(item.icon, size: 18, color: AppColors.bordeaux),
+                  ),
+                  const Spacer(),
+                  Text(
+                    item.label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: AppColors.text,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 12.5,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _NowPromoStrip extends StatelessWidget {
+  final VoidCallback onTapBanner;
+  const _NowPromoStrip({required this.onTapBanner});
+
+  static const _banners = <String>[
+    "https://images.pexels.com/photos/616401/pexels-photo-616401.jpeg?auto=compress&cs=tinysrgb&w=1200",
+    "https://images.pexels.com/photos/4198019/pexels-photo-4198019.jpeg?auto=compress&cs=tinysrgb&w=1200",
+    "https://images.pexels.com/photos/3373739/pexels-photo-3373739.jpeg?auto=compress&cs=tinysrgb&w=1200",
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 132,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: _banners.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 10),
+        itemBuilder: (_, i) {
+          return InkWell(
+            borderRadius: BorderRadius.circular(14),
+            onTap: onTapBanner,
+            child: SizedBox(
+              width: 270,
+              child: _FadeInNetworkImage(
+                url: _banners[i],
+                width: 270,
+                height: 132,
+                borderRadius: BorderRadius.circular(14),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _CatalogCardsStrip extends StatelessWidget {
+  final VoidCallback onTapCard;
+  const _CatalogCardsStrip({required this.onTapCard});
+
+  @override
+  Widget build(BuildContext context) {
+    final cards = [
+      (
+        title: _htr(
+          context,
+          fr: "Spécial Épicerie",
+          en: "Grocery specials",
+          ar: "عروض البقالة",
+        ),
+        subtitle: _htr(context, fr: "Jusqu’à -35%", en: "Up to -35%", ar: "حتى -35%"),
+        image:
+            "https://images.pexels.com/photos/264537/pexels-photo-264537.jpeg?auto=compress&cs=tinysrgb&w=1200",
+      ),
+      (
+        title: _htr(
+          context,
+          fr: "Fruits & Légumes",
+          en: "Fruits & Vegetables",
+          ar: "فواكه وخضر",
+        ),
+        subtitle: _htr(context, fr: "Arrivage frais", en: "Fresh arrivals", ar: "وصولات طازجة"),
+        image:
+            "https://images.pexels.com/photos/143133/pexels-photo-143133.jpeg?auto=compress&cs=tinysrgb&w=1200",
+      ),
+    ];
+
+    return SizedBox(
+      height: 182,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: cards.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 10),
+        itemBuilder: (_, i) {
+          final c = cards[i];
+          return InkWell(
+            borderRadius: BorderRadius.circular(14),
+            onTap: onTapCard,
+            child: Container(
+              width: 206,
+              decoration: AppSurface.card(radius: 14, borderAlpha: 0.86),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _FadeInNetworkImage(
+                    url: c.image,
+                    width: 206,
+                    height: 116,
+                    borderRadius:
+                        const BorderRadius.vertical(top: Radius.circular(14)),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(10, 8, 10, 6),
+                    child: Text(
+                      c.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: AppColors.text,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 13.2,
+                      ),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(10, 0, 10, 8),
+                    child: Text(
+                      c.subtitle,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: AppColors.muted,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 11.5,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
 class _MoodHeroPanel extends StatelessWidget {
   final String category;
   final String flashLeft;
@@ -1257,7 +1774,10 @@ class _MoodHeroPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cat = category == "Tous" ? "sélection personnalisée" : category;
+    final t = AppLocalizations.of(context);
+    final cat = category == t.tr('common_all')
+        ? t.tr('home_personal_selection')
+        : category;
     return Container(
       height: 132,
       decoration: AppSurface.card(radius: AppRadius.lg, borderAlpha: 0.9),
@@ -1272,7 +1792,7 @@ class _MoodHeroPanel extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              "Offres du jour",
+              t.tr('home_offers_today'),
               style: AppTextStyles.h2.copyWith(
                 color: AppColors.text,
                 fontSize: 22,
@@ -1282,7 +1802,7 @@ class _MoodHeroPanel extends StatelessWidget {
             ),
             const SizedBox(height: 4),
             Text(
-              "$cat • se termine dans $flashLeft",
+              t.tr('home_offer_line', params: {'category': cat, 'time': flashLeft}),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(
@@ -1295,14 +1815,14 @@ class _MoodHeroPanel extends StatelessWidget {
             Row(
               children: [
                 _HeroPillBtn(
-                  label: "Voir deals",
+                  label: t.tr('home_view_deals'),
                   icon: Icons.bolt_rounded,
                   onTap: onTapPrimary,
                   filled: true,
                 ),
                 const SizedBox(width: 8),
                 _HeroPillBtn(
-                  label: "Catégorie",
+                  label: t.tr('nav_categories'),
                   icon: Icons.grid_view_rounded,
                   onTap: onTapSecondary,
                   filled: false,
@@ -1378,17 +1898,18 @@ class _QuickBundlesRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const items = [
-      "Petit déjeuner",
-      "Déjeuner",
-      "Goûter",
-      "Ménage",
+    final t = AppLocalizations.of(context);
+    final items = [
+      t.tr('home_quick_breakfast'),
+      t.tr('home_quick_lunch'),
+      t.tr('home_quick_snack'),
+      t.tr('home_quick_household'),
     ];
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          "Courses rapides",
+        Text(
+          t.tr('home_quick_shopping'),
           style: TextStyle(
             color: AppColors.text,
             fontSize: 15.5,
@@ -1412,13 +1933,13 @@ class _QuickBundlesRow extends StatelessWidget {
               Padding(
                 padding: const EdgeInsets.only(right: 8),
                 child: _QuickChip(
-                  label: "Recettes",
+                  label: t.tr('home_recipes'),
                   icon: Icons.menu_book_rounded,
                   onTap: onTapRecipes,
                 ),
               ),
               _QuickChip(
-                label: "Budget",
+                label: t.tr('home_budget'),
                 icon: Icons.savings_rounded,
                 onTap: onTapBudget,
               ),
@@ -1503,7 +2024,10 @@ class _StoreFilterBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final catLabel = selectedCategory == "Tous" ? "Tous" : selectedCategory;
+    final t = AppLocalizations.of(context);
+    final catLabel = selectedCategory == "Tous"
+        ? t.tr('common_all')
+        : selectedCategory;
     final filters = [
       (
         catLabel,
@@ -1512,14 +2036,14 @@ class _StoreFilterBar extends StatelessWidget {
         selectedCategory != "Tous"
       ),
       (
-        "Prix ${maxPrice.toStringAsFixed(0)}",
+        "${t.tr('common_price')} ${maxPrice.toStringAsFixed(0)}",
         Icons.tune_rounded,
         onTapPrice,
         maxPrice < 100
       ),
-      ("Promo", Icons.local_offer_rounded, onTapPromo, promoOnly),
+      (t.tr('common_promo'), Icons.local_offer_rounded, onTapPromo, promoOnly),
       (
-        "Tri",
+        t.tr('common_sort'),
         Icons.swap_vert_rounded,
         onTapSort,
         selectedSort != "Popularité"
@@ -1549,14 +2073,14 @@ class _StoreFilterBar extends StatelessWidget {
                     width: 1.0,
                   ),
                 ),
-                child: const Row(
+                child: Row(
                   children: [
-                    Icon(Icons.clear_all_rounded,
+                    const Icon(Icons.clear_all_rounded,
                         size: 16, color: AppColors.bordeauxDark),
-                    SizedBox(width: 6),
+                    const SizedBox(width: 6),
                     Text(
-                      "Effacer",
-                      style: TextStyle(
+                      t.tr('common_clear'),
+                      style: const TextStyle(
                         color: AppColors.text,
                         fontWeight: FontWeight.w800,
                         fontSize: 12.5,
@@ -1674,6 +2198,20 @@ class _AdvancedFiltersSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context);
+    final sortLabelUi = switch (selectedSort) {
+      "Popularité" => _htr(
+          context,
+          fr: "Popularité",
+          en: "Popularity",
+          ar: "الأكثر رواجًا",
+        ),
+      "Prix ↑" => _htr(context, fr: "Prix ↑", en: "Price ↑", ar: "السعر ↑"),
+      "Prix ↓" => _htr(context, fr: "Prix ↓", en: "Price ↓", ar: "السعر ↓"),
+      "Promo" => t.tr('common_promo'),
+      "Note" => _htr(context, fr: "Note", en: "Rating", ar: "التقييم"),
+      _ => selectedSort,
+    };
     return AnimatedSwitcher(
       duration: const Duration(milliseconds: 220),
       switchInCurve: Curves.easeOutCubic,
@@ -1709,8 +2247,8 @@ class _AdvancedFiltersSection extends StatelessWidget {
                         color: AppColors.bordeaux,
                       ),
                       const SizedBox(width: 6),
-                      const Text(
-                        "Filtres avancés",
+                      Text(
+                        t.tr('home_advanced_filters'),
                         style: TextStyle(
                           fontSize: 13.2,
                           fontWeight: FontWeight.w800,
@@ -1737,7 +2275,7 @@ class _AdvancedFiltersSection extends StatelessWidget {
                     controller: queryController,
                     onChanged: onQueryChanged,
                     decoration: InputDecoration(
-                      hintText: "Chercher un produit...",
+                      hintText: t.tr('home_search_product_hint'),
                       prefixIcon: const Icon(Icons.search_rounded),
                       suffixIcon: queryController.text.isNotEmpty
                           ? IconButton(
@@ -1761,7 +2299,7 @@ class _AdvancedFiltersSection extends StatelessWidget {
                         child: _AdvancedActionChip(
                           icon: Icons.grid_view_rounded,
                           label: selectedCategory == "Tous"
-                              ? "Catégorie"
+                              ? t.tr('nav_categories')
                               : selectedCategory,
                           onTap: onTapCategory,
                         ),
@@ -1770,7 +2308,7 @@ class _AdvancedFiltersSection extends StatelessWidget {
                       Expanded(
                         child: _AdvancedActionChip(
                           icon: Icons.swap_vert_rounded,
-                          label: "Tri: $selectedSort",
+                          label: "${t.tr('common_sort')}: $sortLabelUi",
                           onTap: onTapSort,
                         ),
                       ),
@@ -1785,9 +2323,9 @@ class _AdvancedFiltersSection extends StatelessWidget {
                         color: AppColors.bordeauxDark,
                       ),
                       const SizedBox(width: 8),
-                      const Text(
-                        "Promos seulement",
-                        style: TextStyle(
+                      Text(
+                        t.tr('home_promos_only'),
+                        style: const TextStyle(
                           fontSize: 12.8,
                           fontWeight: FontWeight.w800,
                           color: AppColors.text,
@@ -1803,7 +2341,10 @@ class _AdvancedFiltersSection extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    "Prix max: ${maxPrice.toStringAsFixed(0)} DT",
+                    t.tr(
+                      'home_max_price',
+                      params: {'price': maxPrice.toStringAsFixed(0)},
+                    ),
                     style: const TextStyle(
                       color: AppColors.muted,
                       fontSize: 12,
@@ -1837,18 +2378,18 @@ class _AdvancedFiltersSection extends StatelessWidget {
                       color: AppColors.bordeaux.withValues(alpha: 0.18),
                     ),
                   ),
-                  child: const Row(
+                  child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(
+                      const Icon(
                         Icons.tune_rounded,
                         size: 16,
                         color: AppColors.bordeauxDark,
                       ),
-                      SizedBox(width: 6),
+                      const SizedBox(width: 6),
                       Text(
-                        "Filtres avancés",
-                        style: TextStyle(
+                        t.tr('home_advanced_filters'),
+                        style: const TextStyle(
                           fontSize: 12.6,
                           fontWeight: FontWeight.w800,
                           color: AppColors.text,
@@ -2031,7 +2572,6 @@ class _ShopProductCardFineState extends State<_ShopProductCardFine> {
   Future<void> _addToCart(Product p) async {
     if (_adding) return;
     final cart = context.read<CartCubit>();
-    final previousQty = cart.state[p.id]?.qty ?? 0;
     setState(() => _adding = true);
     HapticFeedback.lightImpact();
     cart.add(
@@ -2043,17 +2583,14 @@ class _ShopProductCardFineState extends State<_ShopProductCardFine> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         behavior: SnackBarBehavior.floating,
-        duration: const Duration(milliseconds: 1200),
-        content: Text("${p.name} ajouté au panier"),
-        action: SnackBarAction(
-          label: "Annuler",
-          onPressed: () {
-            if (previousQty <= 0) {
-              cart.remove(p.id);
-            } else {
-              cart.setQty(p.id, previousQty);
-            }
-          },
+        duration: const Duration(milliseconds: 950),
+        content: Text(
+          _htr(
+            context,
+            fr: "${localizeProductText(context, p.name)} ajouté au panier",
+            en: "${localizeProductText(context, p.name)} added to cart",
+            ar: "تمت إضافة ${localizeProductText(context, p.name)} إلى السلة",
+          ),
         ),
       ),
     );
@@ -2140,9 +2677,13 @@ class _ShopProductCardFineState extends State<_ShopProductCardFine> {
                               SnackBar(
                                 behavior: SnackBarBehavior.floating,
                                 duration: const Duration(milliseconds: 750),
-                                content: Text(wasFav
-                                    ? "Retiré des favoris"
-                                    : "Ajouté aux favoris"),
+                                content: Text(
+                                  wasFav
+                                      ? AppLocalizations.of(context)
+                                          .tr('favorites_removed')
+                                      : AppLocalizations.of(context)
+                                          .tr('favorites_added'),
+                                ),
                               ),
                             );
                           },
@@ -2175,7 +2716,7 @@ class _ShopProductCardFineState extends State<_ShopProductCardFine> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        p.name,
+                        localizeProductText(context, p.name),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
@@ -2211,7 +2752,12 @@ class _ShopProductCardFineState extends State<_ShopProductCardFine> {
                       ),
                       const SizedBox(height: 6),
                       Text(
-                        "⭐ ${p.rating.toStringAsFixed(1)} (${p.reviews})",
+                        _htr(
+                          context,
+                          fr: "⭐ ${p.rating.toStringAsFixed(1)} (${p.reviews})",
+                          en: "⭐ ${p.rating.toStringAsFixed(1)} (${p.reviews})",
+                          ar: "⭐ ${p.rating.toStringAsFixed(1)} (${p.reviews})",
+                        ),
                         style: const TextStyle(
                           color: AppColors.muted,
                           fontSize: 11,
@@ -2232,8 +2778,18 @@ class _ShopProductCardFineState extends State<_ShopProductCardFine> {
                           const SizedBox(width: 8),
                           Text(
                             widget.stock <= 4
-                                ? "Stock faible"
-                                : "Stock: ${widget.stock}",
+                                ? _htr(
+                                    context,
+                                    fr: "Stock faible",
+                                    en: "Low stock",
+                                    ar: "مخزون منخفض",
+                                  )
+                                : _htr(
+                                    context,
+                                    fr: "Stock: ${widget.stock}",
+                                    en: "Stock: ${widget.stock}",
+                                    ar: "المخزون: ${widget.stock}",
+                                  ),
                             style: TextStyle(
                               color: widget.stock <= 4
                                   ? Colors.orange.shade700
@@ -2257,33 +2813,51 @@ class _ShopProductCardFineState extends State<_ShopProductCardFine> {
                           ),
                         ),
                       const SizedBox(height: 10),
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton.icon(
-                          onPressed: () => _addToCart(p),
-                          icon: Icon(
-                            _adding ? Icons.check_rounded : Icons.add_rounded,
-                            size: 16,
-                          ),
-                          label: Text(_adding ? "Ajouté" : "Ajouter"),
-                          style: ElevatedButton.styleFrom(
-                            minimumSize: const Size.fromHeight(34),
-                            elevation: 0,
-                            backgroundColor: _adding
-                                ? AppColors.bordeaux
-                                : AppColors.bordeaux.withValues(alpha: 0.10),
-                            foregroundColor: _adding
-                                ? Colors.white
-                                : AppColors.bordeauxDark,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(11),
-                              side: BorderSide(
-                                color: AppColors.bordeaux.withValues(alpha: 0.22),
-                              ),
+                      AnimatedScale(
+                        scale: _adding ? 1.02 : 1,
+                        duration: const Duration(milliseconds: 140),
+                        child: SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton.icon(
+                            onPressed: () => _addToCart(p),
+                            icon: Icon(
+                              _adding ? Icons.check_rounded : Icons.add_rounded,
+                              size: 16,
                             ),
-                            textStyle: const TextStyle(
-                              fontWeight: FontWeight.w800,
-                              fontSize: 12.5,
+                            label: Text(
+                              _adding
+                                  ? _htr(
+                                      context,
+                                      fr: "Ajouté",
+                                      en: "Added",
+                                      ar: "تمت الإضافة",
+                                    )
+                                  : _htr(
+                                      context,
+                                      fr: "Ajouter",
+                                      en: "Add",
+                                      ar: "أضف",
+                                    ),
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              minimumSize: const Size.fromHeight(34),
+                              elevation: 0,
+                              backgroundColor: _adding
+                                  ? AppColors.bordeaux
+                                  : AppColors.bordeaux.withValues(alpha: 0.10),
+                              foregroundColor: _adding
+                                  ? Colors.white
+                                  : AppColors.bordeauxDark,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(11),
+                                side: BorderSide(
+                                  color: AppColors.bordeaux.withValues(alpha: 0.22),
+                                ),
+                              ),
+                              textStyle: const TextStyle(
+                                fontWeight: FontWeight.w800,
+                                fontSize: 12.5,
+                              ),
                             ),
                           ),
                         ),
@@ -2306,19 +2880,18 @@ class _HomeBackdrop extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const ColoredBox(color: Colors.white);
+    return ColoredBox(color: Theme.of(context).colorScheme.surface);
   }
 }
 
 class _HomeSliverAppBar extends StatelessWidget {
-  static const _bg = Colors.white;
   const _HomeSliverAppBar();
 
   @override
   Widget build(BuildContext context) {
     return SliverAppBar(
       pinned: true,
-      backgroundColor: _bg,
+      backgroundColor: Theme.of(context).colorScheme.surface,
       surfaceTintColor: Colors.transparent,
       elevation: 0,
       toolbarHeight: 72,
@@ -2352,9 +2925,14 @@ class _HomeSliverAppBar extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 2),
-                const Text(
-                  "Votre marché, au meilleur prix",
-                  style: TextStyle(
+                Text(
+                  _htr(
+                    context,
+                    fr: "Votre marché, au meilleur prix",
+                    en: "Your market, at the best price",
+                    ar: "متجرك بأفضل الأسعار",
+                  ),
+                  style: const TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w700,
                       color: AppColors.muted,
@@ -2370,7 +2948,7 @@ class _HomeSliverAppBar extends StatelessWidget {
       actions: [
         _TopIconBtnFine(
           icon: Icons.notifications_rounded,
-          semanticLabel: "Notifications",
+          semanticLabel: AppLocalizations.of(context).tr('notif_title'),
           badgeCount: 3,
           onTap: () {
             HapticFeedback.lightImpact();
@@ -2382,7 +2960,7 @@ class _HomeSliverAppBar extends StatelessWidget {
         const SizedBox(width: 8),
         _TopIconBtnFine(
           icon: Icons.person_rounded,
-          semanticLabel: "Profil",
+          semanticLabel: AppLocalizations.of(context).tr('nav_profile'),
           onTap: () {
             HapticFeedback.lightImpact();
             Navigator.of(context).push(
@@ -2545,7 +3123,12 @@ class _SearchBarFine extends StatelessWidget {
   Widget build(BuildContext context) {
     return Semantics(
       button: true,
-      label: "Ouvrir la recherche produit",
+      label: _htr(
+        context,
+        fr: "Ouvrir la recherche produit",
+        en: "Open product search",
+        ar: "فتح بحث المنتجات",
+      ),
       child: TextField(
         readOnly: true,
         onTap: onTap,
@@ -2639,14 +3222,46 @@ class _TrustBadgesRowState extends State<_TrustBadgesRow> {
         controller: _controller,
         padding: const EdgeInsets.symmetric(horizontal: 16),
         scrollDirection: Axis.horizontal,
-        children: const [
-          _TrustPill(icon: Icons.bolt_rounded, text: "Livraison 45 min"),
-          SizedBox(width: 8),
-          _TrustPill(icon: Icons.lock_rounded, text: "Paiement sécurisé"),
-          SizedBox(width: 8),
-          _TrustPill(icon: Icons.replay_rounded, text: "Retour facile"),
-          SizedBox(width: 8),
-          _TrustPill(icon: Icons.support_agent_rounded, text: "Support 7j/7"),
+        children: [
+          _TrustPill(
+            icon: Icons.bolt_rounded,
+            text: _htr(
+              context,
+              fr: "Livraison 45 min",
+              en: "45 min delivery",
+              ar: "توصيل 45 دقيقة",
+            ),
+          ),
+          const SizedBox(width: 8),
+          _TrustPill(
+            icon: Icons.lock_rounded,
+            text: _htr(
+              context,
+              fr: "Paiement sécurisé",
+              en: "Secure payment",
+              ar: "دفع آمن",
+            ),
+          ),
+          const SizedBox(width: 8),
+          _TrustPill(
+            icon: Icons.replay_rounded,
+            text: _htr(
+              context,
+              fr: "Retour facile",
+              en: "Easy return",
+              ar: "إرجاع سهل",
+            ),
+          ),
+          const SizedBox(width: 8),
+          _TrustPill(
+            icon: Icons.support_agent_rounded,
+            text: _htr(
+              context,
+              fr: "Support 7j/7",
+              en: "Support 7/7",
+              ar: "دعم 7/7",
+            ),
+          ),
         ],
       ),
     );
@@ -2665,29 +3280,39 @@ class _SmartEmptyProducts extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            "Aucun produit avec ces filtres.",
-            style: TextStyle(
+          Text(
+            _htr(
+              context,
+              fr: "Aucun produit avec ces filtres.",
+              en: "No products with these filters.",
+              ar: "لا توجد منتجات بهذه الفلاتر.",
+            ),
+            style: const TextStyle(
               color: AppColors.text,
               fontWeight: FontWeight.w800,
             ),
           ),
           const SizedBox(height: 6),
-          const Text(
-            "Essayez: Tous, promo OFF, prix plus elevé.",
-            style: TextStyle(
+          Text(
+            _htr(
+              context,
+              fr: "Essayez: Tous, promo OFF, prix plus elevé.",
+              en: "Try: All, promo OFF, higher max price.",
+              ar: "جرّب: الكل، إيقاف العروض، وسعر أقصى أعلى.",
+            ),
+            style: const TextStyle(
               color: AppColors.muted,
               fontWeight: FontWeight.w700,
             ),
           ),
           const SizedBox(height: 10),
-          const Wrap(
+          Wrap(
             spacing: 8,
             runSpacing: 8,
             children: [
-              _SmallHintPill("lait"),
-              _SmallHintPill("pain"),
-              _SmallHintPill("jus"),
+              _SmallHintPill(_htr(context, fr: "lait", en: "milk", ar: "حليب")),
+              _SmallHintPill(_htr(context, fr: "pain", en: "bread", ar: "خبز")),
+              _SmallHintPill(_htr(context, fr: "jus", en: "juice", ar: "عصير")),
             ],
           ),
           const SizedBox(height: 12),
@@ -2699,9 +3324,14 @@ class _SmartEmptyProducts extends StatelessWidget {
                 foregroundColor: AppColors.bordeaux,
                 side: const BorderSide(color: AppColors.border),
               ),
-              child: const Text(
-                "Effacer les filtres",
-                style: TextStyle(fontWeight: FontWeight.w800),
+              child: Text(
+                _htr(
+                  context,
+                  fr: "Effacer les filtres",
+                  en: "Clear filters",
+                  ar: "مسح الفلاتر",
+                ),
+                style: const TextStyle(fontWeight: FontWeight.w800),
               ),
             ),
           ),
@@ -2776,13 +3406,19 @@ class _CategoryRowFine extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const items = [
-      _Cat("Épicerie", Icons.local_grocery_store_rounded),
-      _Cat("Boissons", Icons.local_drink_rounded),
-      _Cat("Snacks", Icons.fastfood_rounded),
-      _Cat("Maison", Icons.chair_rounded),
-      _Cat("Hygiène", Icons.spa_rounded),
-      _Cat("Fruits", Icons.apple_rounded),
+    final items = [
+      _Cat(_htr(context, fr: "Épicerie", en: "Grocery", ar: "بقالة"),
+          Icons.local_grocery_store_rounded),
+      _Cat(_htr(context, fr: "Boissons", en: "Drinks", ar: "مشروبات"),
+          Icons.local_drink_rounded),
+      _Cat(_htr(context, fr: "Snacks", en: "Snacks", ar: "سناكس"),
+          Icons.fastfood_rounded),
+      _Cat(_htr(context, fr: "Maison", en: "Home", ar: "المنزل"),
+          Icons.chair_rounded),
+      _Cat(_htr(context, fr: "Hygiène", en: "Hygiene", ar: "نظافة"),
+          Icons.spa_rounded),
+      _Cat(_htr(context, fr: "Fruits", en: "Fruits", ar: "فواكه"),
+          Icons.apple_rounded),
     ];
 
     return Padding(
@@ -2876,9 +3512,14 @@ class _RecentProductsStrip extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          "Continuer vos achats",
-          style: TextStyle(
+        Text(
+          _htr(
+            context,
+            fr: "Continuer vos achats",
+            en: "Continue shopping",
+            ar: "تابع التسوق",
+          ),
+          style: const TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w800,
             color: AppColors.text,
@@ -2919,7 +3560,7 @@ class _RecentProductsStrip extends StatelessWidget {
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Text(
-                              p.name,
+                              localizeProductText(context, p.name),
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
                               style: const TextStyle(
@@ -3029,14 +3670,6 @@ class _SmartSearchSheetFineState extends State<_SmartSearchSheetFine> {
   List<Product> _results = [];
   final List<String> _recentQueries = [];
   bool _loading = false;
-  static const List<String> _trending = [
-    "Lait",
-    "Pain",
-    "Pâtes",
-    "Eau",
-    "Jus",
-    "Fruits",
-  ];
   List<Product> get _catalog {
     final cubit = context.read<HomeCubit>();
     return <Product>[...cubit.state.forYou, ...cubit.state.deals];
@@ -3104,12 +3737,25 @@ class _SmartSearchSheetFineState extends State<_SmartSearchSheetFine> {
 
   @override
   Widget build(BuildContext context) {
+    final trending = <String>[
+      _htr(context, fr: "Lait", en: "Milk", ar: "حليب"),
+      _htr(context, fr: "Pain", en: "Bread", ar: "خبز"),
+      _htr(context, fr: "Pâtes", en: "Pasta", ar: "معكرونة"),
+      _htr(context, fr: "Eau", en: "Water", ar: "ماء"),
+      _htr(context, fr: "Jus", en: "Juice", ar: "عصير"),
+      _htr(context, fr: "Fruits", en: "Fruits", ar: "فواكه"),
+    ];
     final suggestions = _suggestionsFor(_c.text);
     return Padding(
       padding:
           EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
       child: _ProSheetFine(
-        title: "Smart Search",
+        title: _htr(
+          context,
+          fr: "Smart Search",
+          en: "Smart Search",
+          ar: "بحث ذكي",
+        ),
         child: Column(
           children: [
             TextField(
@@ -3119,7 +3765,12 @@ class _SmartSearchSheetFineState extends State<_SmartSearchSheetFine> {
                 _debounce.run(() => _runSearch(q));
               },
               decoration: InputDecoration(
-                hintText: "Tapez un produit… (ex: lait, pâtes)",
+                hintText: _htr(
+                  context,
+                  fr: "Tapez un produit… (ex: lait, pâtes)",
+                  en: "Type a product… (e.g. milk, pasta)",
+                  ar: "اكتب منتجًا… (مثال: حليب، معكرونة)",
+                ),
                 filled: true,
                 fillColor: AppColors.fieldFill,
                 prefixIcon: const Icon(Icons.search_rounded),
@@ -3130,9 +3781,14 @@ class _SmartSearchSheetFineState extends State<_SmartSearchSheetFine> {
                       icon: const Icon(Icons.mic_none_rounded),
                       onPressed: () {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
+                          SnackBar(
                             content: Text(
-                              "Recherche vocale bientôt disponible.",
+                              _htr(
+                                context,
+                                fr: "Recherche vocale bientôt disponible.",
+                                en: "Voice search coming soon.",
+                                ar: "البحث الصوتي قريبًا.",
+                              ),
                             ),
                           ),
                         );
@@ -3142,8 +3798,15 @@ class _SmartSearchSheetFineState extends State<_SmartSearchSheetFine> {
                       icon: const Icon(Icons.qr_code_scanner_rounded),
                       onPressed: () {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text("Scan produit bientôt disponible."),
+                          SnackBar(
+                            content: Text(
+                              _htr(
+                                context,
+                                fr: "Scan produit bientôt disponible.",
+                                en: "Product scan coming soon.",
+                                ar: "مسح المنتج قريبًا.",
+                              ),
+                            ),
                           ),
                         );
                       },
@@ -3178,17 +3841,27 @@ class _SmartSearchSheetFineState extends State<_SmartSearchSheetFine> {
                       borderRadius: BorderRadius.circular(16),
                       border: Border.all(color: AppColors.border),
                     ),
-                    child: const Text(
-                      "Commencez à taper. Je propose des résultats même si vous vous trompez.",
-                      style: TextStyle(
+                    child: Text(
+                      _htr(
+                        context,
+                        fr: "Commencez à taper. Je propose des résultats même si vous vous trompez.",
+                        en: "Start typing. I suggest results even with typos.",
+                        ar: "ابدأ بالكتابة. أقترح نتائج حتى مع الأخطاء.",
+                      ),
+                      style: const TextStyle(
                           color: AppColors.muted, fontWeight: FontWeight.w700),
                     ),
                   ),
                   if (_recentQueries.isNotEmpty) ...[
                     const SizedBox(height: 10),
-                    const Text(
-                      "Recherches récentes",
-                      style: TextStyle(
+                    Text(
+                      _htr(
+                        context,
+                        fr: "Recherches récentes",
+                        en: "Recent searches",
+                        ar: "عمليات البحث الأخيرة",
+                      ),
+                      style: const TextStyle(
                         color: AppColors.text,
                         fontWeight: FontWeight.w800,
                       ),
@@ -3209,9 +3882,14 @@ class _SmartSearchSheetFineState extends State<_SmartSearchSheetFine> {
                     ),
                   ],
                   const SizedBox(height: 10),
-                  const Text(
-                    "Suggestions",
-                    style: TextStyle(
+                  Text(
+                    _htr(
+                      context,
+                      fr: "Suggestions",
+                      en: "Suggestions",
+                      ar: "اقتراحات",
+                    ),
+                    style: const TextStyle(
                       color: AppColors.text,
                       fontWeight: FontWeight.w800,
                     ),
@@ -3220,7 +3898,7 @@ class _SmartSearchSheetFineState extends State<_SmartSearchSheetFine> {
                   Wrap(
                     spacing: 8,
                     runSpacing: 8,
-                    children: _trending.map((q) {
+                    children: trending.map((q) {
                       return ActionChip(
                         label: Text(q),
                         onPressed: () {
@@ -3232,9 +3910,14 @@ class _SmartSearchSheetFineState extends State<_SmartSearchSheetFine> {
                   ),
                   if (suggestions.isNotEmpty) ...[
                     const SizedBox(height: 10),
-                    const Text(
-                      "Autocomplétion",
-                      style: TextStyle(
+                    Text(
+                      _htr(
+                        context,
+                        fr: "Autocomplétion",
+                        en: "Autocomplete",
+                        ar: "إكمال تلقائي",
+                      ),
+                      style: const TextStyle(
                         color: AppColors.text,
                         fontWeight: FontWeight.w800,
                       ),
@@ -3264,9 +3947,14 @@ class _SmartSearchSheetFineState extends State<_SmartSearchSheetFine> {
                         borderRadius: BorderRadius.circular(14),
                         border: Border.all(color: AppColors.border),
                       ),
-                      child: const Text(
-                        "Aucun résultat. Essayez un mot plus court ou une catégorie.",
-                        style: TextStyle(
+                      child: Text(
+                        _htr(
+                          context,
+                          fr: "Aucun résultat. Essayez un mot plus court ou une catégorie.",
+                          en: "No result. Try a shorter word or a category.",
+                          ar: "لا توجد نتائج. جرّب كلمة أقصر أو فئة.",
+                        ),
+                        style: const TextStyle(
                           color: AppColors.muted,
                           fontWeight: FontWeight.w700,
                         ),
@@ -3316,7 +4004,7 @@ class _SearchResultTileFine extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(p.name,
+                  Text(localizeProductText(context, p.name),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
@@ -3375,7 +4063,12 @@ class _RecipesSheetFineState extends State<_RecipesSheetFine> {
       padding:
           EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
       child: _ProSheetFine(
-        title: "Recettes IA 🍽️",
+        title: _htr(
+          context,
+          fr: "Recettes IA 🍽️",
+          en: "AI Recipes 🍽️",
+          ar: "وصفات بالذكاء الاصطناعي 🍽️",
+        ),
         child: Column(
           children: [
             TextField(
@@ -3383,7 +4076,12 @@ class _RecipesSheetFineState extends State<_RecipesSheetFine> {
               maxLines: 2,
               decoration: InputDecoration(
                 hintText:
-                    "Écrivez vos ingrédients… (ex: œufs, tomate, fromage)",
+                    _htr(
+                      context,
+                      fr: "Écrivez vos ingrédients… (ex: œufs, tomate, fromage)",
+                      en: "Write your ingredients… (e.g. eggs, tomato, cheese)",
+                      ar: "اكتب مكوناتك… (مثال: بيض، طماطم، جبن)",
+                    ),
                 filled: true,
                 fillColor: AppColors.fieldFill,
                 border: OutlineInputBorder(
@@ -3413,8 +4111,15 @@ class _RecipesSheetFineState extends State<_RecipesSheetFine> {
                         height: 18,
                         width: 18,
                         child: CircularProgressIndicator(strokeWidth: 2))
-                    : const Text("Générer une idée",
-                        style: TextStyle(fontWeight: FontWeight.w800)),
+                    : Text(
+                        _htr(
+                          context,
+                          fr: "Générer une idée",
+                          en: "Generate an idea",
+                          ar: "ولّد فكرة",
+                        ),
+                        style: const TextStyle(fontWeight: FontWeight.w800),
+                      ),
               ),
             ),
             const SizedBox(height: 12),
@@ -3467,14 +4172,24 @@ class _BudgetSheetFineState extends State<_BudgetSheetFine> {
   @override
   Widget build(BuildContext context) {
     return _ProSheetFine(
-      title: "Budget Planner 💸",
+      title: _htr(
+        context,
+        fr: "Budget Planner 💸",
+        en: "Budget Planner 💸",
+        ar: "مخطط الميزانية 💸",
+      ),
       child: Column(
         children: [
           Row(
             children: [
               Expanded(
                 child: Text(
-                  "Budget: ${_budget.toStringAsFixed(0)} DT",
+                  _htr(
+                    context,
+                    fr: "Budget: ${_budget.toStringAsFixed(0)} DT",
+                    en: "Budget: ${_budget.toStringAsFixed(0)} DT",
+                    ar: "الميزانية: ${_budget.toStringAsFixed(0)} د.ت",
+                  ),
                   style: const TextStyle(
                       fontWeight: FontWeight.w800, color: AppColors.text),
                 ),
@@ -3514,12 +4229,19 @@ class _BudgetSheetFineState extends State<_BudgetSheetFine> {
                 elevation: 0,
               ),
               child: _loading
-                  ? const SizedBox(
+                    ? const SizedBox(
                       height: 18,
                       width: 18,
                       child: CircularProgressIndicator(strokeWidth: 2))
-                  : const Text("Générer panier",
-                      style: TextStyle(fontWeight: FontWeight.w800)),
+                  : Text(
+                      _htr(
+                        context,
+                        fr: "Générer panier",
+                        en: "Generate cart",
+                        ar: "ولّد السلة",
+                      ),
+                      style: const TextStyle(fontWeight: FontWeight.w800),
+                    ),
             ),
           ),
           const SizedBox(height: 12),

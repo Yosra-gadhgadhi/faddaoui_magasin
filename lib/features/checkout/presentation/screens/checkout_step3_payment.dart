@@ -2,6 +2,7 @@ import 'package:elfaddoui_app/features/checkout/domain/entities/heckout_data.dar
 import 'package:elfaddoui_app/features/checkout/domain/widgets/checkout_widgets.dart';
 import 'package:flutter/material.dart';
 import 'package:elfaddoui_app/core/theme/app_colors.dart';
+import 'package:elfaddoui_app/core/l10n/tr3.dart';
 
 import 'order_success_screen.dart';
 
@@ -33,8 +34,8 @@ class _CheckoutStep3PaymentState extends State<CheckoutStep3Payment> {
             borderRadius: BorderRadius.circular(14),
             side: const BorderSide(color: AppColors.border),
           ),
-          content: const Text(
-            "Veuillez accepter les conditions.",
+          content: Text(
+            tr3(context, fr: "Veuillez accepter les conditions.", en: "Please accept the terms.", ar: "يرجى قبول الشروط."),
             style: TextStyle(
               color: AppColors.text,
               fontWeight: FontWeight.w700,
@@ -77,8 +78,8 @@ class _CheckoutStep3PaymentState extends State<CheckoutStep3Payment> {
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         centerTitle: true,
-        title: const Text(
-          "Paiement",
+        title: Text(
+          tr3(context, fr: "Paiement", en: "Payment", ar: "الدفع"),
           style: TextStyle(
             fontWeight: FontWeight.w800,
             fontSize: 18,
@@ -87,9 +88,9 @@ class _CheckoutStep3PaymentState extends State<CheckoutStep3Payment> {
         ),
       ),
       bottomNavigationBar: CheckoutBottomBar(
-        primaryText: "Confirmer",
+        primaryText: tr3(context, fr: "Confirmer", en: "Confirm", ar: "تأكيد"),
         onPrimary: _confirm,
-        secondaryText: "Retour",
+        secondaryText: tr3(context, fr: "Retour", en: "Back", ar: "رجوع"),
         onSecondary: () => Navigator.pop(context),
       ),
       body: ListView(
@@ -99,8 +100,8 @@ class _CheckoutStep3PaymentState extends State<CheckoutStep3Payment> {
           const SizedBox(height: 12),
 
           // ===== HEADER =====
-          const Text(
-            "Paiement & Livraison",
+          Text(
+            tr3(context, fr: "Paiement & Livraison", en: "Payment & Delivery", ar: "الدفع والتوصيل"),
             style: TextStyle(
               fontWeight: FontWeight.w900,
               fontSize: 18,
@@ -108,8 +109,8 @@ class _CheckoutStep3PaymentState extends State<CheckoutStep3Payment> {
             ),
           ),
           const SizedBox(height: 4),
-          const Text(
-            "Choisissez votre mode de paiement et le créneau.",
+          Text(
+            tr3(context, fr: "Choisissez votre mode de paiement et le créneau.", en: "Choose your payment method and slot.", ar: "اختر طريقة الدفع وفترة التوصيل."),
             style: TextStyle(
               fontWeight: FontWeight.w600,
               color: AppColors.muted,
@@ -119,21 +120,21 @@ class _CheckoutStep3PaymentState extends State<CheckoutStep3Payment> {
           const SizedBox(height: 18),
 
           // ===== PAYMENT METHOD =====
-          const _SectionTitle("Mode de paiement"),
+          _SectionTitle(tr3(context, fr: "Mode de paiement", en: "Payment method", ar: "طريقة الدفع")),
           const SizedBox(height: 10),
           _CardShell(
             child: Column(
               children: [
                 _RadioRow(
-                  title: "Paiement à la livraison",
-                  subtitle: "Cash",
+                  title: tr3(context, fr: "Paiement à la livraison", en: "Cash on delivery", ar: "الدفع عند الاستلام"),
+                  subtitle: tr3(context, fr: "Cash", en: "Cash", ar: "نقداً"),
                   selected: data.paymentMethod == "cash",
                   onTap: () => setState(() => data.paymentMethod = "cash"),
                 ),
                 const SizedBox(height: 10),
                 _RadioRow(
-                  title: "Carte",
-                  subtitle: "TPE à la livraison (optionnel)",
+                  title: tr3(context, fr: "Carte", en: "Card", ar: "بطاقة"),
+                  subtitle: tr3(context, fr: "TPE à la livraison (optionnel)", en: "POS on delivery (optional)", ar: "جهاز دفع عند التوصيل (اختياري)"),
                   selected: data.paymentMethod == "card",
                   onTap: () => setState(() => data.paymentMethod = "card"),
                 ),
@@ -144,14 +145,19 @@ class _CheckoutStep3PaymentState extends State<CheckoutStep3Payment> {
           const SizedBox(height: 18),
 
           // ===== DELIVERY SLOT =====
-          const _SectionTitle("Créneau de livraison"),
+          _SectionTitle(tr3(context, fr: "Créneau de livraison", en: "Delivery slot", ar: "فترة التوصيل")),
           const SizedBox(height: 10),
           _CardShell(
             child: Column(
               children: [
                 _RadioRow(
-                  title: "ASAP",
-                  subtitle: "45–60 minutes",
+                  title: tr3(context, fr: "ASAP", en: "ASAP", ar: "في أقرب وقت"),
+                  subtitle: tr3(
+                    context,
+                    fr: "45–60 minutes",
+                    en: "45–60 minutes",
+                    ar: "45–60 دقيقة",
+                  ),
                   selected: data.deliverySlot == "asap",
                   onTap: () {
                     setState(() {
@@ -162,8 +168,8 @@ class _CheckoutStep3PaymentState extends State<CheckoutStep3Payment> {
                 ),
                 const SizedBox(height: 10),
                 _RadioRow(
-                  title: "Choisir une heure",
-                  subtitle: data.scheduledTime ?? "Choisir",
+                  title: tr3(context, fr: "Choisir une heure", en: "Choose time", ar: "اختر الوقت"),
+                  subtitle: data.scheduledTime ?? tr3(context, fr: "Choisir", en: "Choose", ar: "اختر"),
                   selected: data.deliverySlot == "scheduled",
                   onTap: () async {
                     setState(() => data.deliverySlot = "scheduled");
@@ -178,8 +184,8 @@ class _CheckoutStep3PaymentState extends State<CheckoutStep3Payment> {
                     alignment: Alignment.centerLeft,
                     child: TextButton(
                       onPressed: () => _pickTime(data),
-                      child: const Text(
-                        "Modifier l’heure",
+                      child: Text(
+                        tr3(context, fr: "Modifier l’heure", en: "Edit time", ar: "تعديل الوقت"),
                         style: TextStyle(
                           fontWeight: FontWeight.w800,
                           color: AppColors.bordeaux,
@@ -195,14 +201,14 @@ class _CheckoutStep3PaymentState extends State<CheckoutStep3Payment> {
           const SizedBox(height: 18),
 
           // ===== SUMMARY =====
-          const _SectionTitle("Résumé"),
+          _SectionTitle(tr3(context, fr: "Résumé", en: "Summary", ar: "الملخص")),
           const SizedBox(height: 10),
           _CardShell(
             child: Row(
               children: [
-                const Expanded(
+                Expanded(
                   child: Text(
-                    "Total à payer",
+                    tr3(context, fr: "Total à payer", en: "Total to pay", ar: "الإجمالي للدفع"),
                     style: TextStyle(
                       fontWeight: FontWeight.w800,
                       color: AppColors.text,
@@ -234,11 +240,11 @@ class _CheckoutStep3PaymentState extends State<CheckoutStep3Payment> {
                   onChanged: (v) => setState(() => accept = v ?? false),
                 ),
                 const SizedBox(width: 4),
-                const Expanded(
+                Expanded(
                   child: Padding(
                     padding: EdgeInsets.only(top: 10),
                     child: Text(
-                      "J’accepte les conditions et la politique de livraison.",
+                      tr3(context, fr: "J’accepte les conditions et la politique de livraison.", en: "I accept the terms and delivery policy.", ar: "أوافق على الشروط وسياسة التوصيل."),
                       style: TextStyle(
                         fontWeight: FontWeight.w600,
                         color: AppColors.text,

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:elfaddoui_app/core/theme/app_colors.dart';
+import 'package:elfaddoui_app/core/l10n/tr3.dart';
 import 'package:elfaddoui_app/features/delivery/presentation/screens/delivery_tracking_screen.dart';
 
 class OrderSuccessScreen extends StatelessWidget {
@@ -23,8 +24,8 @@ class OrderSuccessScreen extends StatelessWidget {
         backgroundColor: Colors.white,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
-        title: const Text(
-          "Succès",
+        title: Text(
+          tr3(context, fr: "Succès", en: "Success", ar: "تم بنجاح"),
           style: TextStyle(
             fontWeight: FontWeight.w800,
             fontSize: 18,
@@ -56,8 +57,8 @@ class OrderSuccessScreen extends StatelessWidget {
                     borderRadius: BorderRadius.circular(16),
                   ),
                 ),
-                child: const Text(
-                  "Retour à l’accueil",
+                child: Text(
+                  tr3(context, fr: "Retour à l’accueil", en: "Back to home", ar: "العودة للرئيسية"),
                   style: TextStyle(
                     fontWeight: FontWeight.w900,
                     color: Colors.white,
@@ -91,8 +92,8 @@ class OrderSuccessScreen extends StatelessWidget {
 
               const SizedBox(height: 16),
 
-              const Text(
-                "Commande confirmée",
+              Text(
+                tr3(context, fr: "Commande confirmée", en: "Order confirmed", ar: "تم تأكيد الطلب"),
                 style: TextStyle(
                   fontWeight: FontWeight.w900,
                   fontSize: 20,
@@ -103,7 +104,12 @@ class OrderSuccessScreen extends StatelessWidget {
               const SizedBox(height: 8),
 
               Text(
-                "Numéro de commande : $orderId",
+                tr3(
+                  context,
+                  fr: "Numéro de commande : $orderId",
+                  en: "Order number: $orderId",
+                  ar: "رقم الطلب: $orderId",
+                ),
                 textAlign: TextAlign.center,
                 style: const TextStyle(
                   fontWeight: FontWeight.w700,
@@ -123,10 +129,13 @@ class OrderSuccessScreen extends StatelessWidget {
                 child: Column(
                   children: [
                     _Line(
-                        label: "Total payé",
+                        label: tr3(context, fr: "Total payé", en: "Total paid", ar: "إجمالي المدفوع"),
                         value: "${total.toStringAsFixed(2)} DT"),
                     const SizedBox(height: 10),
-                    const _Line(label: "Statut", value: "Confirmée"),
+                    _Line(
+                      label: tr3(context, fr: "Statut", en: "Status", ar: "الحالة"),
+                      value: tr3(context, fr: "Confirmée", en: "Confirmed", ar: "مؤكدة"),
+                    ),
                   ],
                 ),
               ),
@@ -153,8 +162,8 @@ class OrderSuccessScreen extends StatelessWidget {
                     ),
                   ),
                   icon: const Icon(Icons.local_shipping_rounded),
-                  label: const Text(
-                    "Suivre ma commande",
+                  label: Text(
+                    tr3(context, fr: "Suivre ma commande", en: "Track my order", ar: "تتبع طلبي"),
                     style: TextStyle(fontWeight: FontWeight.w800),
                   ),
                 ),
@@ -163,7 +172,7 @@ class OrderSuccessScreen extends StatelessWidget {
               const Spacer(),
 
               Text(
-                "Merci pour votre commande",
+                tr3(context, fr: "Merci pour votre commande", en: "Thank you for your order", ar: "شكراً على طلبك"),
                 style: TextStyle(
                   fontWeight: FontWeight.w700,
                   color: AppColors.muted.withValues(alpha: 0.9),

@@ -1,7 +1,10 @@
 import 'package:elfaddoui_app/core/theme/app_colors.dart';
+import 'package:elfaddoui_app/core/l10n/app_localizations.dart';
+import 'package:elfaddoui_app/core/l10n/product_text_localizer.dart';
 import 'package:elfaddoui_app/core/theme/app_spacing.dart';
 import 'package:elfaddoui_app/core/widgets/primary_card.dart';
 import 'package:elfaddoui_app/core/widgets/section_header.dart';
+import 'package:elfaddoui_app/core/widgets/empty_state_panel.dart';
 import 'package:elfaddoui_app/features/catalog/presentation/screens/categories_screen.dart';
 import 'package:elfaddoui_app/features/catalog/presentation/screens/category_products_screen.dart';
 import 'package:elfaddoui_app/features/catalog/presentation/screens/product_details_screen.dart';
@@ -29,14 +32,6 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
   final TextEditingController _search = TextEditingController();
   int _segment = 0;
   int _sort = 0;
-
-  static const List<String> _segments = ['Tous', 'Petit prix', 'Top'];
-  static const List<String> _sortLabels = [
-    'Récents',
-    'A-Z',
-    'Prix +',
-    'Prix -',
-  ];
 
   @override
   void initState() {
@@ -76,32 +71,37 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
   }
 
   void _removeWithUndo(BuildContext context, FavoriteItem item) {
+    final t = AppLocalizations.of(context);
     context.read<FavoritesCubit>().remove(item.id);
     final messenger = ScaffoldMessenger.maybeOf(context);
     if (messenger == null) return;
     messenger
+      ..removeCurrentSnackBar()
       ..clearSnackBars()
       ..showSnackBar(
         SnackBar(
           behavior: SnackBarBehavior.floating,
-          duration: const Duration(seconds: 3),
-          content: Text('${item.name} retiré des favoris'),
-          action: SnackBarAction(
-            label: 'Annuler',
-            onPressed: () => context.read<FavoritesCubit>().toggle(item),
+          duration: const Duration(milliseconds: 900),
+          margin: const EdgeInsets.fromLTRB(12, 0, 12, 92),
+          content: Text(
+            t.tr('favorites_removed_item', params: {'name': localizeProductText(context, item.name)}),
           ),
         ),
       );
   }
 
-  Future<bool> _confirmDialog(BuildContext context, String title,
-      {String confirmText = 'Confirmer',
-      Color confirmColor = Colors.red}) async {
+  Future<bool> _confirmDialog(
+    BuildContext context,
+    String title, {
+    String? confirmText,
+    Color confirmColor = Colors.red,
+  }) async {
+    final t = AppLocalizations.of(context);
     final res = await showDialog<bool>(
       context: context,
       barrierDismissible: true,
       builder: (dialogContext) => AlertDialog(
-        backgroundColor: Colors.white,
+        backgroundColor: Theme.of(context).colorScheme.surface,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
         titlePadding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
         contentPadding: const EdgeInsets.fromLTRB(20, 0, 20, 14),
@@ -125,9 +125,9 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                   ),
                   padding: const EdgeInsets.symmetric(vertical: 12),
                 ),
-                child: const Text(
-                  'Annuler',
-                  style: TextStyle(
+                child: Text(
+                  t.tr('common_cancel'),
+                  style: const TextStyle(
                     fontWeight: FontWeight.w800,
                     color: AppColors.text,
                   ),
@@ -148,7 +148,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                   padding: const EdgeInsets.symmetric(vertical: 12),
                 ),
                 child: Text(
-                  confirmText,
+                  confirmText ?? t.tr('common_save'),
                   style: const TextStyle(fontWeight: FontWeight.w800),
                 ),
               ),
@@ -173,6 +173,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
   }
 
   void _goProducts(BuildContext context) {
+    final t = AppLocalizations.of(context);
     _haptic();
     if (widget.onGoProducts != null) {
       widget.onGoProducts!.call();
@@ -182,12 +183,13 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
       context,
       MaterialPageRoute(
         builder: (_) =>
-            const CategoryProductsScreen(categoryName: "Populaires"),
+            CategoryProductsScreen(categoryName: t.tr('popular_category')),
       ),
     );
   }
 
   void _addToCart(BuildContext context, FavoriteItem item) {
+    final t = AppLocalizations.of(context);
     context.read<CartCubit>().add(
           id: item.id,
           name: item.name,
@@ -195,10 +197,14 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
           price: item.price,
           qty: 1,
         );
-    _toast(context, '${item.name} ajouté au panier');
+    _toast(
+      context,
+      t.tr('favorites_added_to_cart_item', params: {'name': localizeProductText(context, item.name)}),
+    );
   }
 
   void _addAllToCart(BuildContext context, List<FavoriteItem> items) {
+    final t = AppLocalizations.of(context);
     for (final it in items) {
       context.read<CartCubit>().add(
             id: it.id,
@@ -208,7 +214,10 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
             qty: 1,
           );
     }
-    _toast(context, '${items.length} produit(s) ajoutés au panier');
+    _toast(
+      context,
+      t.tr('favorites_added_to_cart_many', params: {'count': '${items.length}'}),
+    );
   }
 
   List<FavoriteItem> _buildView(List<FavoriteItem> src) {
@@ -239,17 +248,29 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context);
+    final segments = <String>[
+      t.tr('common_all'),
+      t.tr('favorites_segment_low_price'),
+      t.tr('favorites_segment_top'),
+    ];
+    final sortLabels = <String>[
+      t.tr('favorites_sort_recent'),
+      t.tr('favorites_sort_az'),
+      t.tr('favorites_sort_price_up'),
+      t.tr('favorites_sort_price_down'),
+    ];
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: Theme.of(context).colorScheme.surface,
       appBar: AppBar(
         toolbarHeight: 78,
-        backgroundColor: Colors.white,
+        backgroundColor: Theme.of(context).colorScheme.surface,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         shadowColor: Colors.transparent,
         centerTitle: true,
         systemOverlayStyle: SystemUiOverlayStyle.dark,
-        title: const FittedBox(
+        title: FittedBox(
           fit: BoxFit.scaleDown,
           child: Row(
             mainAxisSize: MainAxisSize.min,
@@ -258,7 +279,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                   size: 16, color: AppColors.bordeauxDark),
               SizedBox(width: 8),
               Text(
-                'Favoris',
+                t.tr('nav_favorites'),
                 style: TextStyle(
                   color: AppColors.bordeauxDark,
                   fontWeight: FontWeight.w800,
@@ -271,7 +292,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
         ),
         actions: [
           IconButton(
-            tooltip: 'Actualiser',
+            tooltip: t.tr('common_refresh'),
             onPressed: () {
               setState(() {
                 _segment = 0;
@@ -304,11 +325,11 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
               _TopPanel(
                 controller: _search,
                 segment: _segment,
-                segments: _segments,
+                segments: segments,
                 onSegmentTap: (i) => setState(() => _segment = i),
-                sortLabel: _sortLabels[_sort],
+                sortLabel: sortLabels[_sort],
                 onSelectSort: (i) => setState(() => _sort = i),
-                sortLabels: _sortLabels,
+                sortLabels: sortLabels,
                 total: all.length,
                 visible: items.length,
                 onAddAll: all.isEmpty ? null : () => _addAllToCart(context, all),
@@ -316,8 +337,11 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 2, 16, 8),
                 child: SectionHeader(
-                  title: 'Produits favoris',
-                  subtitle: '${items.length} résultats',
+                  title: t.tr('favorites_title'),
+                  subtitle: t.tr(
+                    'common_results_count',
+                    params: {'count': '${items.length}'},
+                  ),
                 ),
               ),
               Expanded(
@@ -367,19 +391,16 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                                         color: Colors.red.withValues(alpha: 0.24),
                                       ),
                                     ),
-                                    child: Image.asset(
-                                      'assets/icons/poubelle.png',
-                                      width: 18,
-                                      height: 18,
-                                      fit: BoxFit.contain,
-                                      errorBuilder: (_, __, ___) =>
-                                          const Icon(Icons.delete_rounded, color: Colors.red),
+                                    child: const Icon(
+                                      Icons.delete_rounded,
+                                      color: Colors.red,
+                                      size: 18,
                                     ),
                                   ),
                                   confirmDismiss: (_) async => _confirmDialog(
                                     context,
-                                    'Retirer ce produit des favoris ?',
-                                    confirmText: 'Retirer',
+                                    t.tr('favorites_remove_confirm_title'),
+                                    confirmText: t.tr('favorites_remove'),
                                   ),
                                   onDismissed: (_) => _removeWithUndo(context, it),
                                   child: _FavoriteCard(
@@ -401,14 +422,14 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                                     onToggle: () {
                                       _haptic();
                                       context.read<FavoritesCubit>().toggle(it);
-                                      _toast(context, 'Mise à jour des favoris');
+                                      _toast(context, t.tr('favorites_updated'));
                                     },
                                     onAddToCart: () => _addToCart(context, it),
                                     onRemove: () async {
                                       final ok = await _confirmDialog(
                                         context,
-                                        'Retirer ce produit des favoris ?',
-                                        confirmText: 'Retirer',
+                                        t.tr('favorites_remove_confirm_title'),
+                                        confirmText: t.tr('favorites_remove'),
                                       );
                                       if (!ok) return;
                                       if (!context.mounted) return;
@@ -455,6 +476,7 @@ class _TopPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context);
     return Padding(
       padding: const EdgeInsets.fromLTRB(
         AppSpacing.md,
@@ -477,8 +499,8 @@ class _TopPanel extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
-                        'Choisissez un produit favori pour voir les détails.',
+                      Text(
+                        t.tr('favorites_pick_one'),
                         style: TextStyle(
                           fontWeight: FontWeight.w700,
                           color: AppColors.text,
@@ -486,7 +508,7 @@ class _TopPanel extends StatelessWidget {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        '$visible résultat${visible > 1 ? 's' : ''} / $total favoris',
+                        '${t.tr('common_results_count', params: {'count': '$visible'})} / $total ${t.tr('nav_favorites')}',
                         style: TextStyle(
                           color: AppColors.muted.withValues(alpha: 0.9),
                           fontWeight: FontWeight.w700,
@@ -502,7 +524,7 @@ class _TopPanel extends StatelessWidget {
           const SizedBox(height: 8),
           _SearchField(
             controller: controller,
-            hint: 'Rechercher un produit favori…',
+            hint: t.tr('favorites_search_hint'),
             onClear: controller.clear,
           ),
           const SizedBox(height: 8),
@@ -608,9 +630,9 @@ class _TopPanel extends StatelessWidget {
               child: ElevatedButton.icon(
                 onPressed: onAddAll,
                 icon: const Icon(Icons.add_shopping_cart_rounded, size: 18),
-                label: const Text(
-                  'Tout ajouter au panier',
-                  style: TextStyle(fontWeight: FontWeight.w800),
+                label: Text(
+                  t.tr('favorites_add_all_cart'),
+                  style: const TextStyle(fontWeight: FontWeight.w800),
                 ),
                 style: ElevatedButton.styleFrom(
                   elevation: 0,
@@ -730,7 +752,7 @@ class _FavoriteCard extends StatelessWidget {
                     children: [
                       Expanded(
                         child: Text(
-                          item.name,
+                          localizeProductText(context, item.name),
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
@@ -797,6 +819,7 @@ class _DetailButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context);
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(11),
@@ -810,14 +833,18 @@ class _DetailButton extends StatelessWidget {
             color: AppColors.bordeaux.withValues(alpha: 0.24),
           ),
         ),
-        child: const Row(
+        child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.open_in_new_rounded, size: 16, color: AppColors.bordeaux),
-            SizedBox(width: 6),
+            const Icon(
+              Icons.open_in_new_rounded,
+              size: 16,
+              color: AppColors.bordeaux,
+            ),
+            const SizedBox(width: 6),
             Text(
-              'Voir détail',
-              style: TextStyle(
+              t.tr('favorites_view_detail'),
+              style: const TextStyle(
                 color: AppColors.bordeauxDark,
                 fontWeight: FontWeight.w800,
               ),
@@ -879,12 +906,13 @@ class _MoreButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context);
     return InkWell(
       onTap: () {
         showModalBottomSheet<void>(
           context: context,
           showDragHandle: true,
-          backgroundColor: Colors.white,
+          backgroundColor: Theme.of(context).colorScheme.surface,
           shape: const RoundedRectangleBorder(
             borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
           ),
@@ -896,7 +924,7 @@ class _MoreButton extends StatelessWidget {
                 children: [
                   _ActionTile(
                     icon: Icons.open_in_new_rounded,
-                    text: 'Voir détail',
+                    text: t.tr('favorites_view_detail'),
                     onTap: () {
                       Navigator.pop(ctx);
                       onOpen();
@@ -904,7 +932,7 @@ class _MoreButton extends StatelessWidget {
                   ),
                   _ActionTile(
                     icon: Icons.add_shopping_cart_rounded,
-                    text: 'Ajouter au panier',
+                    text: t.tr('favorites_add_to_cart'),
                     onTap: () {
                       Navigator.pop(ctx);
                       onAddToCart();
@@ -912,8 +940,7 @@ class _MoreButton extends StatelessWidget {
                   ),
                   _ActionTile(
                     icon: Icons.delete_outline_rounded,
-                    imageAsset: 'assets/icons/poubelle.png',
-                    text: 'Retirer des favoris',
+                    text: t.tr('favorites_remove_from_favorites'),
                     isDanger: true,
                     onTap: () {
                       Navigator.pop(ctx);
@@ -1013,46 +1040,15 @@ class _NoResult extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(18),
-          decoration: AppSurface.card(radius: AppRadius.lg, borderAlpha: 0.82),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.search_off_rounded,
-                  size: 34, color: AppColors.muted),
-              const SizedBox(height: 10),
-              const Text(
-                'Aucun résultat',
-                style: TextStyle(
-                  color: AppColors.text,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-              const SizedBox(height: 12),
-              SizedBox(
-                width: double.infinity,
-                height: 42,
-                child: ElevatedButton(
-                  onPressed: onReset,
-                  style: ElevatedButton.styleFrom(
-                    elevation: 0,
-                    backgroundColor: AppColors.bordeaux,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(13),
-                    ),
-                  ),
-                  child: const Text('Réinitialiser'),
-                ),
-              ),
-            ],
-          ),
-        ),
+    final t = AppLocalizations.of(context);
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: EmptyStatePanel(
+        icon: Icons.search_off_rounded,
+        title: t.tr('favorites_no_result'),
+        subtitle: t.tr('favorites_search_hint'),
+        primaryLabel: t.tr('common_clear'),
+        onPrimary: onReset,
       ),
     );
   }
@@ -1069,89 +1065,17 @@ class _EmptyFavorites extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(18),
-          decoration: AppSurface.card(radius: AppRadius.lg, borderAlpha: 0.82),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 58,
-                height: 58,
-                decoration: BoxDecoration(
-                  color: AppColors.bordeaux.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                      color: AppColors.lightGrey.withValues(alpha: 0.95)),
-                ),
-                child: const Icon(Icons.favorite_border_rounded,
-                    color: AppColors.bordeaux, size: 26),
-              ),
-              const SizedBox(height: 12),
-              const Text(
-                'Aucun produit favori pour le moment',
-                style: TextStyle(
-                  color: AppColors.text,
-                  fontWeight: FontWeight.w800,
-                  fontSize: 16,
-                ),
-              ),
-              const SizedBox(height: 6),
-              const Text(
-                'Ajoutez vos produits préférés en cliquant sur le cœur.',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: AppColors.muted,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const SizedBox(height: 14),
-              SizedBox(
-                width: double.infinity,
-                height: 46,
-                child: ElevatedButton(
-                  onPressed: onGoProducts,
-                  style: ElevatedButton.styleFrom(
-                    elevation: 0,
-                    backgroundColor: AppColors.bordeaux,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                  ),
-                  child: const Text(
-                    'Découvrir des produits',
-                    style: TextStyle(fontWeight: FontWeight.w800),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 10),
-              SizedBox(
-                width: double.infinity,
-                height: 42,
-                child: OutlinedButton(
-                  onPressed: onGoCategories,
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: AppColors.bordeaux,
-                    side:
-                        BorderSide(color: AppColors.border.withValues(alpha: 0.86)),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                  ),
-                  child: const Text(
-                    'Voir les catégories',
-                    style: TextStyle(fontWeight: FontWeight.w800),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
+    final t = AppLocalizations.of(context);
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: EmptyStatePanel(
+        icon: Icons.favorite_border_rounded,
+        title: t.tr('favorites_empty_title'),
+        subtitle: t.tr('favorites_empty_subtitle'),
+        primaryLabel: t.tr('cart_discover_products'),
+        onPrimary: onGoProducts,
+        secondaryLabel: t.tr('cart_see_categories'),
+        onSecondary: onGoCategories,
       ),
     );
   }

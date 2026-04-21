@@ -2,6 +2,7 @@ import 'package:elfaddoui_app/features/checkout/domain/entities/heckout_data.dar
 import 'package:elfaddoui_app/features/checkout/domain/widgets/checkout_widgets.dart';
 import 'package:flutter/material.dart';
 import 'package:elfaddoui_app/core/theme/app_colors.dart';
+import 'package:elfaddoui_app/core/l10n/tr3.dart';
 
 import 'checkout_step2_address.dart';
 
@@ -31,12 +32,18 @@ class _CheckoutStep1PersonalState extends State<CheckoutStep1Personal> {
   }
 
   String? _req(String? v) =>
-      (v == null || v.trim().isEmpty) ? "Champ obligatoire" : null;
+      (v == null || v.trim().isEmpty)
+          ? tr3(context, fr: "Champ obligatoire", en: "Required field", ar: "حقل إجباري")
+          : null;
 
   String? _phoneValidator(String? v) {
-    if (v == null || v.trim().isEmpty) return "Téléphone obligatoire";
+    if (v == null || v.trim().isEmpty) {
+      return tr3(context, fr: "Téléphone obligatoire", en: "Phone required", ar: "رقم الهاتف إجباري");
+    }
     final digits = v.replaceAll(RegExp(r'\D'), '');
-    if (digits.length < 8) return "Numéro invalide";
+    if (digits.length < 8) {
+      return tr3(context, fr: "Numéro invalide", en: "Invalid number", ar: "رقم غير صالح");
+    }
     return null;
   }
 
@@ -73,8 +80,8 @@ class _CheckoutStep1PersonalState extends State<CheckoutStep1Personal> {
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         centerTitle: true,
-        title: const Text(
-          "Commander",
+        title: Text(
+          tr3(context, fr: "Commander", en: "Checkout", ar: "إتمام الطلب"),
           style: TextStyle(
             fontWeight: FontWeight.w800,
             fontSize: 18,
@@ -83,9 +90,9 @@ class _CheckoutStep1PersonalState extends State<CheckoutStep1Personal> {
         ),
       ),
       bottomNavigationBar: CheckoutBottomBar(
-        primaryText: "Continuer",
+        primaryText: tr3(context, fr: "Continuer", en: "Continue", ar: "متابعة"),
         onPrimary: _next,
-        secondaryText: "Retour",
+        secondaryText: tr3(context, fr: "Retour", en: "Back", ar: "رجوع"),
         onSecondary: () => Navigator.pop(context),
       ),
       body: Form(
@@ -97,8 +104,8 @@ class _CheckoutStep1PersonalState extends State<CheckoutStep1Personal> {
             const SizedBox(height: 12),
 
             // ===== HEADER (minimal) =====
-            const Text(
-              "Informations personnelles",
+            Text(
+              tr3(context, fr: "Informations personnelles", en: "Personal information", ar: "المعلومات الشخصية"),
               style: TextStyle(
                 fontWeight: FontWeight.w900,
                 fontSize: 18,
@@ -106,8 +113,8 @@ class _CheckoutStep1PersonalState extends State<CheckoutStep1Personal> {
               ),
             ),
             const SizedBox(height: 2),
-            const Text(
-              "Veuillez renseigner vos informations",
+            Text(
+              tr3(context, fr: "Veuillez renseigner vos informations", en: "Please fill in your information", ar: "يرجى إدخال معلوماتك"),
               style: TextStyle(
                 fontWeight: FontWeight.w600,
                 color: AppColors.muted,
@@ -139,9 +146,9 @@ class _CheckoutStep1PersonalState extends State<CheckoutStep1Personal> {
                     ),
                   ),
                   const SizedBox(width: 12),
-                  const Expanded(
+                  Expanded(
                     child: Text(
-                      "Résumé de la commande",
+                      tr3(context, fr: "Résumé de la commande", en: "Order summary", ar: "ملخص الطلب"),
                       style: TextStyle(
                         fontWeight: FontWeight.w900,
                         color: AppColors.text,
@@ -163,7 +170,7 @@ class _CheckoutStep1PersonalState extends State<CheckoutStep1Personal> {
             const SizedBox(height: 18),
 
             // ✅ SECTION TITLE خارج الكارد (يفرق واضح)
-            const _SectionTitle("Contact"),
+            _SectionTitle(tr3(context, fr: "Contact", en: "Contact", ar: "التواصل")),
             const SizedBox(height: 10),
 
             // ===== CONTACT CARD (فقط fields) =====
@@ -171,21 +178,21 @@ class _CheckoutStep1PersonalState extends State<CheckoutStep1Personal> {
               child: Column(
                 children: [
                   CheckoutField(
-                    label: "Nom & Prénom *",
-                    hint: "Votre nom complet",
+                    label: tr3(context, fr: "Nom & Prénom *", en: "Full name *", ar: "الاسم الكامل *"),
+                    hint: tr3(context, fr: "Votre nom complet", en: "Your full name", ar: "اسمك الكامل"),
                     controller: _name,
                     validator: _req,
                   ),
                   CheckoutField(
-                    label: "Téléphone *",
-                    hint: "Numéro de téléphone",
+                    label: tr3(context, fr: "Téléphone *", en: "Phone *", ar: "الهاتف *"),
+                    hint: tr3(context, fr: "Numéro de téléphone", en: "Phone number", ar: "رقم الهاتف"),
                     controller: _phone,
                     keyboardType: TextInputType.phone,
                     validator: _phoneValidator,
                   ),
                   CheckoutField(
-                    label: "Email (optionnel)",
-                    hint: "Adresse email (optionnel)",
+                    label: tr3(context, fr: "Email (optionnel)", en: "Email (optional)", ar: "البريد الإلكتروني (اختياري)"),
+                    hint: tr3(context, fr: "Adresse email (optionnel)", en: "Email address (optional)", ar: "البريد الإلكتروني (اختياري)"),
                     controller: _email,
                     keyboardType: TextInputType.emailAddress,
                   ),
@@ -195,14 +202,14 @@ class _CheckoutStep1PersonalState extends State<CheckoutStep1Personal> {
 
             const SizedBox(height: 18),
 
-            const _SectionTitle("Note"),
+            _SectionTitle(tr3(context, fr: "Note", en: "Note", ar: "ملاحظة")),
             const SizedBox(height: 10),
 
             // ===== NOTE CARD =====
             _CardShell(
               child: CheckoutField(
-                label: "Note pour le livreur (optionnel)",
-                hint: "Ajouter une note pour le livreur",
+                label: tr3(context, fr: "Note pour le livreur (optionnel)", en: "Note for courier (optional)", ar: "ملاحظة للمُوصل (اختياري)"),
+                hint: tr3(context, fr: "Ajouter une note pour le livreur", en: "Add a note for the courier", ar: "أضف ملاحظة للمُوصل"),
                 controller: _note,
                 maxLines: 3,
               ),

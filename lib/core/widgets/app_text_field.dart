@@ -9,6 +9,7 @@ class AppTextField extends StatelessWidget {
   final bool obscureText;
   final Widget? prefixIcon;
   final Widget? suffixIcon;
+  final ValueChanged<String>? onChanged;
 
   const AppTextField({
     super.key,
@@ -19,6 +20,7 @@ class AppTextField extends StatelessWidget {
     this.obscureText = false,
     this.prefixIcon,
     this.suffixIcon,
+    this.onChanged,
   });
 
   @override
@@ -39,6 +41,7 @@ class AppTextField extends StatelessWidget {
           controller: controller,
           keyboardType: keyboardType,
           obscureText: obscureText,
+          onChanged: onChanged,
           style: const TextStyle(
             color: AppColors.text,
             fontSize: 14,

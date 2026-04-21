@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:elfaddoui_app/core/l10n/tr3.dart';
+import 'package:elfaddoui_app/core/l10n/product_text_localizer.dart';
 
 import 'package:elfaddoui_app/core/theme/app_colors.dart';
 import 'package:elfaddoui_app/core/theme/app_spacing.dart';
 import 'package:elfaddoui_app/core/theme/app_text_styles.dart';
+import 'package:elfaddoui_app/core/widgets/empty_state_panel.dart';
 
 class SearchScreen extends StatefulWidget {
   const SearchScreen({super.key});
@@ -231,26 +234,37 @@ class _SearchScreenState extends State<SearchScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   if (hasQuery) ...[
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(14),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: AppColors.border),
+                    EmptyStatePanel(
+                      icon: Icons.search_off_rounded,
+                      title: tr3(
+                        context,
+                        fr: 'Aucun resultat',
+                        en: 'No result',
+                        ar: 'لا توجد نتائج',
                       ),
-                      child: const Text(
-                        'Aucun resultat. Essaye: lait, jus, pain.',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w800,
-                          color: AppColors.muted,
-                        ),
+                      subtitle: tr3(
+                        context,
+                        fr: 'Essaye: lait, jus, pain.',
+                        en: 'Try: milk, juice, bread.',
+                        ar: 'جرّب: حليب، عصير، خبز.',
                       ),
+                      primaryLabel: tr3(
+                        context,
+                        fr: 'Effacer la recherche',
+                        en: 'Clear search',
+                        ar: 'مسح البحث',
+                      ),
+                      onPrimary: () {
+                        setState(() {
+                          _controller.clear();
+                          _results = const [];
+                        });
+                      },
                     ),
                     if (suggestions.isNotEmpty) ...[
                       const SizedBox(height: 14),
                       Text(
-                        'Suggestions intelligentes',
+                        tr3(context, fr: 'Suggestions intelligentes', en: 'Smart suggestions', ar: 'اقتراحات ذكية'),
                         style: AppTextStyles.h3
                             .copyWith(fontWeight: FontWeight.w900),
                       ),
@@ -259,15 +273,19 @@ class _SearchScreenState extends State<SearchScreen> {
                         spacing: 8,
                         runSpacing: 8,
                         children: suggestions
-                            .map((s) =>
-                                _Chip(text: s, onTap: () => _submitQuery(s)))
+                            .map(
+                              (s) => _Chip(
+                                text: localizeProductText(context, s),
+                                onTap: () => _submitQuery(s),
+                              ),
+                            )
                             .toList(growable: false),
                       ),
                     ],
                     const SizedBox(height: 18),
                   ],
                   Text(
-                    'Recherches recentes',
+                    tr3(context, fr: 'Recherches recentes', en: 'Recent searches', ar: 'عمليات البحث الأخيرة'),
                     style:
                         AppTextStyles.h3.copyWith(fontWeight: FontWeight.w900),
                   ),
@@ -277,12 +295,16 @@ class _SearchScreenState extends State<SearchScreen> {
                     runSpacing: 10,
                     children: _history
                         .map(
-                            (q) => _Chip(text: q, onTap: () => _submitQuery(q)))
+                          (q) => _Chip(
+                            text: localizeProductText(context, q),
+                            onTap: () => _submitQuery(q),
+                          ),
+                        )
                         .toList(growable: false),
                   ),
                   const SizedBox(height: 22),
                   Text(
-                    'Recherches populaires',
+                    tr3(context, fr: 'Recherches populaires', en: 'Popular searches', ar: 'عمليات البحث الشائعة'),
                     style:
                         AppTextStyles.h3.copyWith(fontWeight: FontWeight.w900),
                   ),
@@ -292,12 +314,16 @@ class _SearchScreenState extends State<SearchScreen> {
                     runSpacing: 10,
                     children: _popular
                         .map(
-                            (q) => _Chip(text: q, onTap: () => _submitQuery(q)))
+                          (q) => _Chip(
+                            text: localizeProductText(context, q),
+                            onTap: () => _submitQuery(q),
+                          ),
+                        )
                         .toList(growable: false),
                   ),
                   const SizedBox(height: 22),
                   Text(
-                    'Essaye aussi',
+                    tr3(context, fr: 'Essaye aussi', en: 'Try also', ar: 'جرّب أيضاً'),
                     style:
                         AppTextStyles.h3.copyWith(fontWeight: FontWeight.w900),
                   ),
@@ -307,7 +333,11 @@ class _SearchScreenState extends State<SearchScreen> {
                     runSpacing: 10,
                     children: _fallbackQueries
                         .map(
-                            (q) => _Chip(text: q, onTap: () => _submitQuery(q)))
+                          (q) => _Chip(
+                            text: localizeProductText(context, q),
+                            onTap: () => _submitQuery(q),
+                          ),
+                        )
                         .toList(growable: false),
                   ),
                 ],
@@ -347,8 +377,8 @@ class _SearchBarInline extends StatelessWidget {
               controller: controller,
               autofocus: true,
               onSubmitted: onSubmitted,
-              decoration: const InputDecoration(
-                hintText: 'Rechercher un produit...',
+              decoration: InputDecoration(
+                hintText: tr3(context, fr: 'Rechercher un produit...', en: 'Search a product...', ar: 'ابحث عن منتج...'),
                 border: InputBorder.none,
               ),
               style: const TextStyle(
@@ -427,7 +457,7 @@ class _ResultTile extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    p.name,
+                    localizeProductText(context, p.name),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
@@ -437,7 +467,7 @@ class _ResultTile extends StatelessWidget {
                   ),
                   const SizedBox(height: 3),
                   Text(
-                    p.category,
+                    localizeProductText(context, p.category),
                     style: const TextStyle(
                       fontWeight: FontWeight.w700,
                       color: AppColors.muted,

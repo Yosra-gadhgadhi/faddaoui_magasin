@@ -2,6 +2,8 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:elfaddoui_app/core/l10n/tr3.dart';
+import 'package:elfaddoui_app/core/l10n/product_text_localizer.dart';
 
 import 'package:elfaddoui_app/core/theme/app_colors.dart';
 import 'package:elfaddoui_app/core/theme/app_spacing.dart';
@@ -173,7 +175,11 @@ class _CategoryProductsScreenState extends State<CategoryProductsScreen> with Si
     context.read<FavoritesCubit>().toggle(fav);
     final isFav = context.read<FavoritesCubit>().isFavorite(p.id);
 
-    _toastPremium(isFav ? "Ajouté aux favoris" : "Retiré des favoris");
+    _toastPremium(
+      isFav
+          ? tr3(context, fr: "Ajouté aux favoris", en: "Added to favorites", ar: "تمت الإضافة للمفضلة")
+          : tr3(context, fr: "Retiré des favoris", en: "Removed from favorites", ar: "تمت الإزالة من المفضلة"),
+    );
   }
 
   Future<void> _openFilters() async {
@@ -291,7 +297,12 @@ class _CategoryProductsScreenState extends State<CategoryProductsScreen> with Si
                     padding: const EdgeInsets.fromLTRB(16, 6, 16, 10),
                     child: _AnimatedSearchNoShadow(
                       controller: _search,
-                      hint: "Rechercher un produit…",
+                      hint: tr3(
+                        context,
+                        fr: "Rechercher un produit…",
+                        en: "Search a product…",
+                        ar: "ابحث عن منتج…",
+                      ),
                       onClear: () {
                         _search.clear();
                         _apply();
@@ -314,7 +325,7 @@ class _CategoryProductsScreenState extends State<CategoryProductsScreen> with Si
                 itemBuilder: (_, i) {
                   if (i == 0) {
                     return _Pill(
-                      text: "Tout",
+                      text: tr3(context, fr: "Tout", en: "All", ar: "الكل"),
                       selected: _subCat == null,
                       onTap: () {
                         setState(() => _subCat = null);
@@ -324,14 +335,14 @@ class _CategoryProductsScreenState extends State<CategoryProductsScreen> with Si
                   }
                   if (i == 1) {
                     return _Pill(
-                      text: "Tri",
+                      text: tr3(context, fr: "Tri", en: "Sort", ar: "ترتيب"),
                       selected: false,
                       onTap: _openSortQuick,
                     );
                   }
                   final s = _subCategories[i - 2];
                   return _Pill(
-                    text: s,
+                    text: localizeProductText(context, s),
                     selected: _subCat == s,
                     onTap: () {
                       setState(() => _subCat = s);
@@ -349,7 +360,7 @@ class _CategoryProductsScreenState extends State<CategoryProductsScreen> with Si
               child: _ProductsMiniSummary(
                 productsCount: _view.length,
                 promoCount: promoCount,
-                sortLabel: _sortLabel(_sort),
+                sortLabel: _sortLabel(context, _sort),
                 promoActive: _onlyPromo,
                 sortActive: _sort != SortOption.recommended,
                 onTapProducts: () {
@@ -483,7 +494,10 @@ class _CategoryProductsScreenState extends State<CategoryProductsScreen> with Si
                             padding: const EdgeInsets.symmetric(horizontal: 14),
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                           ),
-                          child: const Text("Voir panier", style: TextStyle(fontWeight: FontWeight.w700)),
+                          child: Text(
+                            tr3(context, fr: "Voir panier", en: "View cart", ar: "عرض السلة"),
+                            style: const TextStyle(fontWeight: FontWeight.w700),
+                          ),
                         ),
                       )
                     ],
@@ -581,13 +595,23 @@ class _ProductsMiniSummary extends StatelessWidget {
           children: [
             _SummaryPill(
               icon: Icons.inventory_2_rounded,
-              text: '$productsCount produits',
+              text: tr3(
+                context,
+                fr: '$productsCount produits',
+                en: '$productsCount products',
+                ar: '$productsCount منتج',
+              ),
               onTap: onTapProducts,
             ),
             const SizedBox(width: 8),
             _SummaryPill(
               icon: Icons.local_offer_rounded,
-              text: '$promoCount promos',
+              text: tr3(
+                context,
+                fr: '$promoCount promos',
+                en: '$promoCount promos',
+                ar: '$promoCount عروض',
+              ),
               onTap: onTapPromos,
               selected: promoActive,
             ),
@@ -750,15 +774,25 @@ class _EmptyStateProducts extends StatelessWidget {
         children: [
           const Icon(Icons.search_off_rounded, color: AppColors.muted, size: 34),
           const SizedBox(height: 10),
-          const Text(
-            "Aucun produit trouvé.",
-            style: TextStyle(fontWeight: FontWeight.w800, color: AppColors.text),
+          Text(
+            tr3(
+              context,
+              fr: "Aucun produit trouvé.",
+              en: "No products found.",
+              ar: "لم يتم العثور على منتجات.",
+            ),
+            style: const TextStyle(fontWeight: FontWeight.w800, color: AppColors.text),
           ),
           const SizedBox(height: 6),
-          const Text(
-            "Essayez de changer les filtres ou la recherche.",
+          Text(
+            tr3(
+              context,
+              fr: "Essayez de changer les filtres ou la recherche.",
+              en: "Try changing filters or search.",
+              ar: "جرّب تغيير الفلاتر أو البحث.",
+            ),
             textAlign: TextAlign.center,
-            style: TextStyle(fontWeight: FontWeight.w700, color: AppColors.muted),
+            style: const TextStyle(fontWeight: FontWeight.w700, color: AppColors.muted),
           ),
           const SizedBox(height: 12),
           SizedBox(
@@ -772,7 +806,10 @@ class _EmptyStateProducts extends StatelessWidget {
                 elevation: 0,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
               ),
-              child: const Text("Réinitialiser", style: TextStyle(fontWeight: FontWeight.w700)),
+              child: Text(
+                tr3(context, fr: "Réinitialiser", en: "Reset", ar: "إعادة الضبط"),
+                style: const TextStyle(fontWeight: FontWeight.w700),
+              ),
             ),
           ),
         ],
@@ -783,7 +820,7 @@ class _EmptyStateProducts extends StatelessWidget {
 
 /* ===================== PRODUCT CARD ===================== */
 
-class _ProductCardFine extends StatelessWidget {
+class _ProductCardFine extends StatefulWidget {
   final Product p;
   final int qtyInCart;
   final VoidCallback onAdd;
@@ -801,21 +838,34 @@ class _ProductCardFine extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
-    final p = this.p;
+  State<_ProductCardFine> createState() => _ProductCardFineState();
+}
 
-    return InkWell(
-      borderRadius: BorderRadius.circular(18),
-      onTap: onTap,
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: AppColors.border.withValues(alpha: 0.85)),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+class _ProductCardFineState extends State<_ProductCardFine> {
+  bool _pressed = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = widget.p;
+
+    return AnimatedScale(
+      scale: _pressed ? 0.985 : 1,
+      duration: const Duration(milliseconds: 120),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(18),
+        onTap: widget.onTap,
+        onTapDown: (_) => setState(() => _pressed = true),
+        onTapCancel: () => setState(() => _pressed = false),
+        onTapUp: (_) => setState(() => _pressed = false),
+        child: Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: AppColors.border.withValues(alpha: 0.85)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
             Expanded(
               flex: 6,
               child: Padding(
@@ -850,7 +900,44 @@ class _ProductCardFine extends StatelessWidget {
                           ),
                         ),
                       ),
-                      if (p.isPromo) const Positioned(left: 8, top: 8, child: _MiniBadge(text: "Promo")),
+                      if (p.isPromo)
+                        Positioned(
+                          left: 8,
+                          top: 8,
+                          child: _MiniBadge(
+                            text: tr3(
+                              context,
+                              fr: "Promo",
+                              en: "Promo",
+                              ar: "عرض",
+                            ),
+                          ),
+                        ),
+                      Positioned(
+                        left: 8,
+                        bottom: 8,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.93),
+                            borderRadius: BorderRadius.circular(999),
+                            border: Border.all(
+                              color: AppColors.border.withValues(alpha: 0.85),
+                            ),
+                          ),
+                          child: Text(
+                            "★ ${((p.score / 20).clamp(3.0, 5.0)).toStringAsFixed(1)}",
+                            style: const TextStyle(
+                              fontSize: 10.5,
+                              fontWeight: FontWeight.w800,
+                              color: AppColors.text,
+                            ),
+                          ),
+                        ),
+                      ),
                       Positioned(
                         right: 8,
                         top: 8,
@@ -859,7 +946,7 @@ class _ProductCardFine extends StatelessWidget {
                             final isFav = favs.containsKey(p.id);
                             return GestureDetector(
                               behavior: HitTestBehavior.opaque,
-                              onTap: onFav,
+                              onTap: widget.onFav,
                               child: Container(
                                 height: 30,
                                 width: 30,
@@ -891,7 +978,7 @@ class _ProductCardFine extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      p.name,
+                      localizeProductText(context, p.name),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
@@ -934,24 +1021,35 @@ class _ProductCardFine extends StatelessWidget {
                     const Spacer(),
                     Align(
                       alignment: Alignment.centerRight,
-                      child: qtyInCart == 0
+                      child: widget.qtyInCart == 0
                           ? SizedBox(
-                              height: 40,
-                              width: 40,
-                              child: ElevatedButton(
-                                onPressed: onAdd,
+                              height: 36,
+                              child: ElevatedButton.icon(
+                                onPressed: widget.onAdd,
                                 style: ElevatedButton.styleFrom(
-                                  padding: EdgeInsets.zero,
+                                  padding: const EdgeInsets.symmetric(horizontal: 12),
                                   backgroundColor: AppColors.bordeaux,
                                   foregroundColor: Colors.white,
                                   elevation: 0,
                                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(11)),
                                 ),
-                                child: const Icon(Icons.add_rounded, size: 18),
+                                icon: const Icon(Icons.add_rounded, size: 16),
+                                label: Text(
+                                  tr3(
+                                    context,
+                                    fr: "Ajouter",
+                                    en: "Add",
+                                    ar: "إضافة",
+                                  ),
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w800,
+                                    fontSize: 12.2,
+                                  ),
+                                ),
                               ),
                             )
                           : Container(
-                              height: 40,
+                              height: 36,
                               padding: const EdgeInsets.symmetric(horizontal: 2),
                               decoration: BoxDecoration(
                                 color: AppColors.bordeaux.withValues(alpha: 0.05),
@@ -962,19 +1060,19 @@ class _ProductCardFine extends StatelessWidget {
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
                                   IconButton(
-                                    onPressed: onRemoveOne,
+                                    onPressed: widget.onRemoveOne,
                                     visualDensity: VisualDensity.compact,
-                                    constraints: const BoxConstraints.tightFor(width: 40, height: 40),
+                                    constraints: const BoxConstraints.tightFor(width: 34, height: 34),
                                     icon: const Icon(Icons.remove_rounded, color: AppColors.bordeaux, size: 16),
                                   ),
                                   Text(
-                                    "$qtyInCart",
+                                    "${widget.qtyInCart}",
                                     style: const TextStyle(fontWeight: FontWeight.w700, color: AppColors.text),
                                   ),
                                   IconButton(
-                                    onPressed: onAdd,
+                                    onPressed: widget.onAdd,
                                     visualDensity: VisualDensity.compact,
-                                    constraints: const BoxConstraints.tightFor(width: 40, height: 40),
+                                    constraints: const BoxConstraints.tightFor(width: 34, height: 34),
                                     icon: const Icon(Icons.add_rounded, color: AppColors.bordeaux, size: 16),
                                   ),
                                 ],
@@ -985,7 +1083,8 @@ class _ProductCardFine extends StatelessWidget {
                 ),
               ),
             ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -1017,18 +1116,18 @@ class _MiniBadge extends StatelessWidget {
 
 enum SortOption { recommended, top, newest, priceLow, priceHigh }
 
-String _sortLabel(SortOption sort) {
+String _sortLabel(BuildContext context, SortOption sort) {
   switch (sort) {
     case SortOption.recommended:
-      return 'Recommandé';
+      return tr3(context, fr: 'Recommandé', en: 'Recommended', ar: 'موصى به');
     case SortOption.top:
-      return 'Top ventes';
+      return tr3(context, fr: 'Top ventes', en: 'Top sales', ar: 'الأكثر مبيعاً');
     case SortOption.newest:
-      return 'Nouveautés';
+      return tr3(context, fr: 'Nouveautés', en: 'Newest', ar: 'الأحدث');
     case SortOption.priceLow:
-      return 'Prix croissant';
+      return tr3(context, fr: 'Prix croissant', en: 'Price low-high', ar: 'السعر من الأقل للأعلى');
     case SortOption.priceHigh:
-      return 'Prix décroissant';
+      return tr3(context, fr: 'Prix décroissant', en: 'Price high-low', ar: 'السعر من الأعلى للأقل');
   }
 }
 
@@ -1087,15 +1186,26 @@ class _FilterSheetState extends State<_FilterSheet> {
     return Padding(
       padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
       child: _ProSheetNoShadow(
-        title: "Filtres",
+        title: tr3(context, fr: "Filtres", en: "Filters", ar: "الفلاتر"),
         child: Column(
           children: [
-            _SwitchRow(title: "Promotions uniquement", value: _promo, onChanged: (v) => setState(() => _promo = v)),
-            _SwitchRow(title: "Bio uniquement", value: _bio, onChanged: (v) => setState(() => _bio = v)),
+            _SwitchRow(
+              title: tr3(context, fr: "Promotions uniquement", en: "Promos only", ar: "العروض فقط"),
+              value: _promo,
+              onChanged: (v) => setState(() => _promo = v),
+            ),
+            _SwitchRow(
+              title: tr3(context, fr: "Bio uniquement", en: "Bio only", ar: "عضوي فقط"),
+              value: _bio,
+              onChanged: (v) => setState(() => _bio = v),
+            ),
             const SizedBox(height: 10),
             Align(
               alignment: Alignment.centerLeft,
-              child: Text("Prix", style: AppTextStyles.h3.copyWith(fontWeight: FontWeight.w800)),
+              child: Text(
+                tr3(context, fr: "Prix", en: "Price", ar: "السعر"),
+                style: AppTextStyles.h3.copyWith(fontWeight: FontWeight.w800),
+              ),
             ),
             RangeSlider(
               values: _range,
@@ -1115,7 +1225,10 @@ class _FilterSheetState extends State<_FilterSheet> {
             const SizedBox(height: 12),
             Align(
               alignment: Alignment.centerLeft,
-              child: Text("Tri", style: AppTextStyles.h3.copyWith(fontWeight: FontWeight.w800)),
+              child: Text(
+                tr3(context, fr: "Tri", en: "Sort", ar: "ترتيب"),
+                style: AppTextStyles.h3.copyWith(fontWeight: FontWeight.w800),
+              ),
             ),
             const SizedBox(height: 8),
             _SortPick(current: _sort, onPick: (s) => setState(() => _sort = s)),
@@ -1142,7 +1255,10 @@ class _FilterSheetState extends State<_FilterSheet> {
                   elevation: 0,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                 ),
-                child: const Text("Appliquer", style: TextStyle(fontWeight: FontWeight.w700)),
+                child: Text(
+                  tr3(context, fr: "Appliquer", en: "Apply", ar: "تطبيق"),
+                  style: const TextStyle(fontWeight: FontWeight.w700),
+                ),
               ),
             ),
           ],
@@ -1160,14 +1276,14 @@ class _SortSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return _ProSheetNoShadow(
-      title: "Trier par",
+      title: tr3(context, fr: "Trier par", en: "Sort by", ar: "ترتيب حسب"),
       child: Column(
         children: [
-          _RadioTile("Recommandé", SortOption.recommended, current, onPick),
-          _RadioTile("Top ventes", SortOption.top, current, onPick),
-          _RadioTile("Nouveautés", SortOption.newest, current, onPick),
-          _RadioTile("Prix: bas → haut", SortOption.priceLow, current, onPick),
-          _RadioTile("Prix: haut → bas", SortOption.priceHigh, current, onPick),
+          _RadioTile(tr3(context, fr: "Recommandé", en: "Recommended", ar: "موصى به"), SortOption.recommended, current, onPick),
+          _RadioTile(tr3(context, fr: "Top ventes", en: "Top sales", ar: "الأكثر مبيعاً"), SortOption.top, current, onPick),
+          _RadioTile(tr3(context, fr: "Nouveautés", en: "Newest", ar: "الأحدث"), SortOption.newest, current, onPick),
+          _RadioTile(tr3(context, fr: "Prix: bas → haut", en: "Price: low → high", ar: "السعر: من الأقل → الأعلى"), SortOption.priceLow, current, onPick),
+          _RadioTile(tr3(context, fr: "Prix: haut → bas", en: "Price: high → low", ar: "السعر: من الأعلى → الأقل"), SortOption.priceHigh, current, onPick),
         ],
       ),
     );
@@ -1183,11 +1299,11 @@ class _SortPick extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        _RadioTile("Recommandé", SortOption.recommended, current, onPick),
-        _RadioTile("Top ventes", SortOption.top, current, onPick),
-        _RadioTile("Nouveautés", SortOption.newest, current, onPick),
-        _RadioTile("Prix: bas → haut", SortOption.priceLow, current, onPick),
-        _RadioTile("Prix: haut → bas", SortOption.priceHigh, current, onPick),
+        _RadioTile(tr3(context, fr: "Recommandé", en: "Recommended", ar: "موصى به"), SortOption.recommended, current, onPick),
+        _RadioTile(tr3(context, fr: "Top ventes", en: "Top sales", ar: "الأكثر مبيعاً"), SortOption.top, current, onPick),
+        _RadioTile(tr3(context, fr: "Nouveautés", en: "Newest", ar: "الأحدث"), SortOption.newest, current, onPick),
+        _RadioTile(tr3(context, fr: "Prix: bas → haut", en: "Price: low → high", ar: "السعر: من الأقل → الأعلى"), SortOption.priceLow, current, onPick),
+        _RadioTile(tr3(context, fr: "Prix: haut → bas", en: "Price: high → low", ar: "السعر: من الأعلى → الأقل"), SortOption.priceHigh, current, onPick),
       ],
     );
   }
@@ -1413,7 +1529,7 @@ List<String> _categoryImagesFor(String cat) {
 
   if (normalized == "tv & multimédia" || normalized == "tv multimedia") {
     return const [
-      "https://images.pexels.com/photos/678257/pexels-photo-678257.jpeg?auto=compress&cs=tinysrgb&w=900",
+      "https://images.pexels.com/photos/5825570/pexels-photo-5825570.jpeg?auto=compress&cs=tinysrgb&w=900",
       "https://images.pexels.com/photos/6976095/pexels-photo-6976095.jpeg?auto=compress&cs=tinysrgb&w=900",
       "https://images.pexels.com/photos/1444416/pexels-photo-1444416.jpeg?auto=compress&cs=tinysrgb&w=900",
     ];

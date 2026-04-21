@@ -67,9 +67,12 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'app/routes.dart';
 import 'core/theme/app_theme.dart';
+import 'core/l10n/app_localizations.dart';
+import 'core/l10n/tr3.dart';
 import 'core/network/dio_client.dart';
 import 'core/storage/token_storage.dart';
 import 'features/auth/data/datasources/auth_remote_datasource.dart.dart';
@@ -89,12 +92,14 @@ import 'features/settings/presentation/cubit/app_settings_cubit.dart';
 import 'features/ai/data/mock_ai_service.dart';
 import 'features/ai/presentation/cubit/ai_cubit.dart';
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
   final tokenStorage = TokenStorage();
   final dioClient = DioClient(tokenStorage);
   final authRemote = AuthRemoteDataSource(dioClient.dio);
   final AuthRepository authRepo =
       AuthRepositoryImpl(remote: authRemote, storage: tokenStorage);
+  const initialRoute = AppRoutes.splash;
 
   runApp(
     MultiRepositoryProvider(
@@ -122,14 +127,15 @@ void main() {
             },
           ),
         ],
-        child: const MyApp(),
+        child: MyApp(initialRoute: initialRoute),
       ),
     ),
   );
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  final String initialRoute;
+  const MyApp({super.key, required this.initialRoute});
 
   @override
   Widget build(BuildContext context) {
@@ -137,16 +143,37 @@ class MyApp extends StatelessWidget {
       builder: (context, settings) {
         return MaterialApp(
           debugShowCheckedModeBanner: false,
-          initialRoute: AppRoutes.main,
+          initialRoute: initialRoute,
           routes: AppRoutes.routes,
+          locale: Locale(settings.languageCode),
+          supportedLocales: const [
+            Locale('fr'),
+            Locale('en'),
+            Locale('ar'),
+          ],
+          localizationsDelegates: const [
+            AppLocalizations.delegate,
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+          ],
           theme: AppTheme.light(animationsEnabled: settings.animationsEnabled),
           darkTheme: AppTheme.dark(
             animationsEnabled: settings.animationsEnabled,
           ),
           themeMode: settings.darkMode ? ThemeMode.dark : ThemeMode.light,
           onUnknownRoute: (_) => MaterialPageRoute(
-            builder: (_) => const Scaffold(
-              body: Center(child: Text("Route introuvable")),
+            builder: (context) => Scaffold(
+              body: Center(
+                child: Text(
+                  tr3(
+                    context,
+                    fr: "Route introuvable",
+                    en: "Route not found",
+                    ar: "المسار غير موجود",
+                  ),
+                ),
+              ),
             ),
           ),
         );

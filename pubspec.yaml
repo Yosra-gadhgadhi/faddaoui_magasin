@@ -10,6 +10,8 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  flutter_localizations:
+    sdk: flutter
   cupertino_icons: ^1.0.2
   carousel_slider: ^5.1.1
   # State Management
@@ -27,9 +29,10 @@ dependencies:
   flutter_svg: ^2.0.9
   # Other common utilities
   equatable: ^2.0.5 # Often used with BLoC for value equality
-  intl: ^0.18.1 # For internationalization and date formatting
+  intl: ^0.20.2 # For internationalization and date formatting
   flutter_secure_storage: ^9.0.0
   url_launcher: ^6.3.1
+  local_auth: ^2.3.0
   
 dev_dependencies:
   flutter_test:

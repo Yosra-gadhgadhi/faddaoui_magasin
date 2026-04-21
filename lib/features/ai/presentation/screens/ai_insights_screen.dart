@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:elfaddoui_app/core/l10n/tr3.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
@@ -12,7 +13,10 @@ class AiInsightsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("AI Insights", style: AppTextStyles.h2),
+        title: Text(
+          tr3(context, fr: "Insights IA", en: "AI Insights", ar: "رؤى الذكاء الاصطناعي"),
+          style: AppTextStyles.h2,
+        ),
       ),
       body: Padding(
         padding: const EdgeInsets.all(16),
@@ -20,7 +24,10 @@ class AiInsightsScreen extends StatelessWidget {
           builder: (context, state) {
             return ListView(
               children: [
-                const Text("Recommandations pour toi", style: AppTextStyles.h3),
+                Text(
+                  tr3(context, fr: "Recommandations pour toi", en: "Recommendations for you", ar: "توصيات لك"),
+                  style: AppTextStyles.h3,
+                ),
                 const SizedBox(height: 10),
 
                 if (state.loadingRecs)
@@ -29,8 +36,8 @@ class AiInsightsScreen extends StatelessWidget {
                     child: Center(child: CircularProgressIndicator()),
                   )
                 else if (state.recs.isEmpty)
-                  const Text(
-                    "Pas de recommandations pour le moment.",
+                  Text(
+                    tr3(context, fr: "Pas de recommandations pour le moment.", en: "No recommendations for now.", ar: "لا توجد توصيات حالياً."),
                     style: AppTextStyles.muted,
                   )
                 else
@@ -43,7 +50,10 @@ class AiInsightsScreen extends StatelessWidget {
                       )),
 
                 const SizedBox(height: 22),
-                const Text("Comparaison de prix", style: AppTextStyles.h3),
+                Text(
+                  tr3(context, fr: "Comparaison de prix", en: "Price comparison", ar: "مقارنة الأسعار"),
+                  style: AppTextStyles.h3,
+                ),
                 const SizedBox(height: 10),
 
                 const _CompareDemoBox(),
@@ -142,9 +152,9 @@ class _CompareDemoBox extends StatelessWidget {
       ),
       child: Row(
         children: [
-          const Expanded(
+          Expanded(
             child: Text(
-              "Exemple: مقارنة سعر منتج",
+              tr3(context, fr: "Exemple: comparer le prix d’un produit", en: "Example: compare a product price", ar: "مثال: قارن سعر منتج"),
               style: AppTextStyles.body,
             ),
           ),
@@ -168,8 +178,8 @@ class _CompareDemoBox extends StatelessWidget {
                 vertical: 12,
               ),
             ),
-            child: const Text(
-              "Comparer",
+            child: Text(
+              tr3(context, fr: "Comparer", en: "Compare", ar: "قارن"),
               style: TextStyle(fontWeight: FontWeight.w700),
             ),
           )
@@ -200,7 +210,10 @@ class _ComparisonResult extends StatelessWidget {
         children: [
           Row(
             children: [
-              const Text("Notre prix: ", style: AppTextStyles.muted),
+              Text(
+                tr3(context, fr: "Notre prix: ", en: "Our price: ", ar: "سعرنا: "),
+                style: AppTextStyles.muted,
+              ),
               Text(
                 "${cmp.ourPrice.toStringAsFixed(2)} dt",
                 style: AppTextStyles.h3.copyWith(
@@ -212,7 +225,12 @@ class _ComparisonResult extends StatelessWidget {
           const SizedBox(height: 10),
           if (best != null)
             Text(
-              "Meilleur concurrent: ${best.storeName} (${best.price.toStringAsFixed(2)} dt)",
+              tr3(
+                context,
+                fr: "Meilleur concurrent: ${best.storeName} (${best.price.toStringAsFixed(2)} dt)",
+                en: "Best competitor: ${best.storeName} (${best.price.toStringAsFixed(2)} dt)",
+                ar: "أفضل منافس: ${best.storeName} (${best.price.toStringAsFixed(2)} د.ت)",
+              ),
               style: AppTextStyles.body,
             ),
           const SizedBox(height: 10),

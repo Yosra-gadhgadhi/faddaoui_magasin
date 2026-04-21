@@ -430,6 +430,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:elfaddoui_app/core/l10n/tr3.dart';
 
 import '../../../../core/widgets/app_text_field.dart';
 import '../../../../core/widgets/primary_button.dart';
@@ -494,7 +495,11 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
 
         if (s.passwordResetDone) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text("Mot de passe changé")),
+            SnackBar(
+              content: Text(
+                tr3(context, fr: "Mot de passe changé", en: "Password changed", ar: "تم تغيير كلمة المرور"),
+              ),
+            ),
           );
 
           Navigator.pushReplacementNamed(
@@ -506,7 +511,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
       child: Scaffold(
         backgroundColor: Colors.white,
         appBar: AppBar(
-          title: const Text("Nouveau mot de passe"),
+          title: Text(tr3(context, fr: "Nouveau mot de passe", en: "New password", ar: "كلمة مرور جديدة")),
         ),
         body: Padding(
           padding: const EdgeInsets.all(20),
@@ -518,7 +523,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
               const SizedBox(height: 20),
 
               AppTextField(
-                label: "Nouveau mot de passe",
+                label: tr3(context, fr: "Nouveau mot de passe", en: "New password", ar: "كلمة مرور جديدة"),
                 controller: _newPassword,
                 obscureText: hideNew, hint: '',
               ),
@@ -526,7 +531,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
               const SizedBox(height: 12),
 
               AppTextField(
-                label: "Confirmer",
+                label: tr3(context, fr: "Confirmer", en: "Confirm", ar: "تأكيد"),
                 controller: _confirmPassword,
                 obscureText: hideConfirm, hint: '',
               ),
@@ -534,7 +539,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
               const SizedBox(height: 20),
 
               PrimaryButton(
-                text: "Confirmer",
+                text: tr3(context, fr: "Confirmer", en: "Confirm", ar: "تأكيد"),
                 onPressed: () => _confirm(resetToken),
               )
             ],

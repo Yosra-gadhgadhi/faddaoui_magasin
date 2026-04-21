@@ -1,5 +1,6 @@
 import 'dart:ui';
 
+import 'package:elfaddoui_app/core/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:elfaddoui_app/core/theme/app_colors.dart';
@@ -46,9 +47,11 @@ class _MainNavScreenState extends State<MainNavScreen> {
     _goToTab(1);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
+      final t = AppLocalizations.of(context);
       Navigator.of(context).push(
         MaterialPageRoute(
-          builder: (_) => const CategoryProductsScreen(categoryName: "Populaires"),
+          builder: (_) =>
+              CategoryProductsScreen(categoryName: t.tr('popular_category')),
         ),
       );
     });
@@ -56,24 +59,25 @@ class _MainNavScreenState extends State<MainNavScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context);
     final items = <({String label, IconData icon, IconData activeIcon})>[
       (
-        label: 'Accueil',
+        label: t.tr('nav_home'),
         icon: Icons.home_outlined,
         activeIcon: Icons.home_rounded
       ),
       (
-        label: 'Catégories',
+        label: t.tr('nav_categories'),
         icon: Icons.category_outlined,
         activeIcon: Icons.category_rounded
       ),
       (
-        label: 'Favoris',
+        label: t.tr('nav_favorites'),
         icon: Icons.favorite_outline_rounded,
         activeIcon: Icons.favorite_rounded
       ),
       (
-        label: 'Panier',
+        label: t.tr('nav_cart'),
         icon: Icons.shopping_cart_outlined,
         activeIcon: Icons.shopping_cart_rounded
       ),
@@ -93,7 +97,7 @@ class _MainNavScreenState extends State<MainNavScreen> {
     ];
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: Theme.of(context).colorScheme.surface,
       body: IndexedStack(index: _index, children: pages),
       bottomNavigationBar: SafeArea(
         top: false,
@@ -110,7 +114,10 @@ class _MainNavScreenState extends State<MainNavScreen> {
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
                     decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.9),
+                      color: Theme.of(context)
+                          .colorScheme
+                          .surface
+                          .withValues(alpha: 0.9),
                       borderRadius: BorderRadius.circular(22),
                       border: Border.all(
                           color: AppColors.border.withValues(alpha: 0.8)),
@@ -275,7 +282,7 @@ class _ChatbotCenterButtonState extends State<_ChatbotCenterButton>
                 height: 46,
                 width: 46,
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: Theme.of(context).colorScheme.surface,
                   borderRadius: BorderRadius.circular(999),
                   border: Border.all(
                       color: AppColors.bordeaux.withValues(alpha: 0.40)),

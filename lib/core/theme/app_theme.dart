@@ -214,6 +214,9 @@ class AppTheme {
           primary: AppColors.bordeaux,
           secondary: const Color(0xFFD36A8A),
           tertiary: const Color(0xFF1E1E25),
+        ).copyWith(
+          surface: const Color(0xFF121216),
+          onSurface: Colors.white,
         ),
       );
 

@@ -2,9 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import 'package:elfaddoui_app/core/l10n/app_localizations.dart';
+import 'package:elfaddoui_app/core/l10n/product_text_localizer.dart';
 import 'package:elfaddoui_app/core/theme/app_colors.dart';
 import 'package:elfaddoui_app/core/theme/app_spacing.dart';
 import 'package:elfaddoui_app/core/theme/app_text_styles.dart';
+import 'package:elfaddoui_app/core/widgets/empty_state_panel.dart';
 import 'package:elfaddoui_app/features/cart/presentation/cubit/cart_cubit.dart';
 
 import 'package:elfaddoui_app/features/favorites/presentation/cubit/favorites_cubit.dart';
@@ -32,17 +35,17 @@ class CartScreen extends StatefulWidget {
 class _CartScreenState extends State<CartScreen> {
   static const double delivery = 4.0;
 
-  List<_CartItem> _itemsFromCart(Map<String, CartLine> cart) {
+  List<_CartItem> _itemsFromCart(BuildContext context, Map<String, CartLine> cart) {
     return cart.values
         .map(
           (e) => _CartItem(
             id: e.id,
-            name: e.name,
-            unit: "Quantité: ${e.qty}",
+            name: localizeProductText(context, e.name),
+            unit: "${localizeProductText(context, "Quantité")}: ${e.qty}",
             price: e.price,
             oldPrice: null,
             qty: e.qty,
-            tag: "Panier",
+            tag: localizeProductText(context, "Panier"),
             image: e.image,
           ),
         )
@@ -63,14 +66,15 @@ class _CartScreenState extends State<CartScreen> {
     required BuildContext context,
     required String title,
     required String confirmText,
-    String cancelText = "Annuler",
+    String? cancelText,
     Color confirmColor = AppColors.bordeaux,
   }) async {
+    final t = AppLocalizations.of(context);
     final res = await showDialog<bool>(
       context: context,
       barrierDismissible: true,
       builder: (dialogContext) => AlertDialog(
-        backgroundColor: Colors.white,
+        backgroundColor: Theme.of(context).colorScheme.surface,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
         titlePadding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
         contentPadding: const EdgeInsets.fromLTRB(20, 0, 20, 14),
@@ -95,7 +99,7 @@ class _CartScreenState extends State<CartScreen> {
                   padding: const EdgeInsets.symmetric(vertical: 12),
                 ),
                 child: Text(
-                  cancelText,
+                  cancelText ?? t.tr('common_cancel'),
                   style: const TextStyle(
                     fontWeight: FontWeight.w800,
                     color: AppColors.text,
@@ -138,7 +142,7 @@ class _CartScreenState extends State<CartScreen> {
       SnackBar(
         duration: const Duration(milliseconds: 1100),
         behavior: SnackBarBehavior.floating,
-        backgroundColor: Colors.white,
+        backgroundColor: Theme.of(context).colorScheme.surface,
         elevation: 0,
         margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
         shape: RoundedRectangleBorder(
@@ -191,28 +195,30 @@ class _CartScreenState extends State<CartScreen> {
       widget.onGoProducts!.call();
       return;
     }
+    final t = AppLocalizations.of(context);
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (_) =>
-            const CategoryProductsScreen(categoryName: "Populaires"),
+            CategoryProductsScreen(categoryName: t.tr('popular_category')),
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context);
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: Theme.of(context).colorScheme.surface,
       appBar: AppBar(
         toolbarHeight: 78,
-        backgroundColor: Colors.white,
+        backgroundColor: Theme.of(context).colorScheme.surface,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         shadowColor: Colors.transparent,
         centerTitle: true,
         systemOverlayStyle: SystemUiOverlayStyle.dark,
-        title: const FittedBox(
+        title: FittedBox(
           fit: BoxFit.scaleDown,
           child: Row(
             mainAxisSize: MainAxisSize.min,
@@ -221,7 +227,7 @@ class _CartScreenState extends State<CartScreen> {
                   size: 16, color: AppColors.bordeauxDark),
               SizedBox(width: 8),
               Text(
-                "Panier",
+                t.tr('nav_cart'),
                 style: TextStyle(
                   color: AppColors.bordeauxDark,
                   fontWeight: FontWeight.w800,
@@ -234,7 +240,7 @@ class _CartScreenState extends State<CartScreen> {
         ),
         actions: [
           IconButton(
-            tooltip: "Suivi",
+            tooltip: t.tr('cart_tracking'),
             onPressed: () {
               Navigator.of(context).push(
                 MaterialPageRoute(
@@ -257,18 +263,19 @@ class _CartScreenState extends State<CartScreen> {
             builder: (context, cart) {
               if (cart.isEmpty) return const SizedBox.shrink();
               return IconButton(
-                tooltip: "Vider",
+                tooltip: t.tr('cart_clear'),
                 onPressed: () async {
                   final ok = await _confirmDialog(
                     context: context,
-                    title: "Vider tout le panier ?",
-                    confirmText: "Vider",
+                    title: t.tr('cart_clear_confirm_title'),
+                    confirmText: t.tr('cart_clear'),
+                    cancelText: t.tr('common_cancel'),
                     confirmColor: Colors.red,
                   );
                   if (!ok) return;
                   if (!context.mounted) return;
                   context.read<CartCubit>().clear();
-                  _toastPremium("Panier vidé");
+                  _toastPremium(t.tr('cart_cleared'));
                 },
                 icon: Container(
                   width: 40,
@@ -276,14 +283,10 @@ class _CartScreenState extends State<CartScreen> {
                   decoration: AppSurface.iconContainer(borderAlpha: 0.14),
                   child: Padding(
                     padding: const EdgeInsets.all(8),
-                    child: Image.asset(
-                      'assets/icons/poubelle.png',
-                      fit: BoxFit.contain,
-                      errorBuilder: (_, __, ___) => const Icon(
-                        Icons.delete_outline_rounded,
-                        color: AppColors.bordeaux,
-                        size: 18,
-                      ),
+                    child: const Icon(
+                      Icons.delete_outline_rounded,
+                      color: AppColors.bordeaux,
+                      size: 18,
                     ),
                   ),
                 ),
@@ -295,7 +298,7 @@ class _CartScreenState extends State<CartScreen> {
       ),
       bottomNavigationBar: BlocBuilder<CartCubit, Map<String, CartLine>>(
         builder: (context, cart) {
-          final items = _itemsFromCart(cart);
+    final items = _itemsFromCart(context, cart);
           final subtotal = _subtotal(items);
           final total = _total(items);
           return SafeArea(
@@ -312,7 +315,7 @@ class _CartScreenState extends State<CartScreen> {
       ),
       body: BlocBuilder<CartCubit, Map<String, CartLine>>(
         builder: (context, cart) {
-          final items = _itemsFromCart(cart);
+          final items = _itemsFromCart(context, cart);
           return Column(
             children: [
               const _InfoBar(),
@@ -348,14 +351,15 @@ class _CartScreenState extends State<CartScreen> {
                               _haptic();
                               final ok = await _confirmDialog(
                                 context: context,
-                                title: "Supprimer ce produit ?",
-                                confirmText: "Supprimer",
+                                title: t.tr('cart_remove_confirm_title'),
+                                confirmText: t.tr('common_delete'),
+                                cancelText: t.tr('common_cancel'),
                                 confirmColor: Colors.red,
                               );
                               if (!ok) return;
                               if (!context.mounted) return;
                               context.read<CartCubit>().remove(it.id);
-                              _toastPremium("Produit supprimé");
+                              _toastPremium(t.tr('cart_product_removed'));
                             },
                             onToggleFavorite: () {
                               _haptic();
@@ -372,7 +376,9 @@ class _CartScreenState extends State<CartScreen> {
                                   .read<FavoritesCubit>()
                                   .isFavorite(it.id);
                               _toastPremium(
-                                isFav ? "Ajouté aux favoris" : "Retiré des favoris",
+                                isFav
+                                    ? t.tr('favorites_added')
+                                    : t.tr('favorites_removed'),
                               );
                             },
                           );
@@ -394,6 +400,7 @@ class _InfoBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context);
     final softBordeaux = AppColors.bordeaux.withValues(alpha: 0.06);
     final softBorder = AppColors.bordeaux.withValues(alpha: 0.18);
 
@@ -411,13 +418,13 @@ class _InfoBar extends StatelessWidget {
           tintAlpha: 0.06,
           borderAlpha: 0.18,
         ).copyWith(color: softBordeaux, border: Border.all(color: softBorder)),
-        child: const Row(
+        child: Row(
           children: [
             Icon(Icons.local_shipping_rounded, color: AppColors.bordeaux),
             SizedBox(width: 10),
             Expanded(
               child: Text(
-                "Livraison estimée : 45–60 min • Paiement à la livraison ou par carte",
+                t.tr('cart_estimated_delivery'),
                 style: TextStyle(
                     fontWeight: FontWeight.w700, color: AppColors.text),
               ),
@@ -446,6 +453,7 @@ class _CartCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context);
     final lineTotal = (item.price * item.qty.toDouble()).toStringAsFixed(2);
 
     return Container(
@@ -493,15 +501,17 @@ class _CartCard extends StatelessWidget {
                     if (v == "remove") onRemove();
                   },
                   itemBuilder: (_) => [
-                    const PopupMenuItem(
+                    PopupMenuItem(
                       value: "fav",
                       height: 42,
                       child: Row(
                         children: [
-                          Icon(Icons.favorite_border_rounded, size: 20),
+                          const Icon(Icons.favorite_border_rounded, size: 20),
                           SizedBox(width: 12),
-                          Text("Favoris",
-                              style: TextStyle(fontWeight: FontWeight.w600)),
+                          Text(
+                            t.tr('nav_favorites'),
+                            style: const TextStyle(fontWeight: FontWeight.w600),
+                          ),
                         ],
                       ),
                     ),
@@ -514,20 +524,16 @@ class _CartCard extends StatelessWidget {
                           SizedBox(
                             width: 20,
                             height: 20,
-                            child: Image.asset(
-                              'assets/icons/poubelle.png',
-                              fit: BoxFit.contain,
-                              errorBuilder: (_, __, ___) => const Icon(
-                                Icons.delete_rounded,
-                                size: 20,
-                                color: Colors.red,
-                              ),
+                            child: const Icon(
+                              Icons.delete_rounded,
+                              size: 20,
+                              color: Colors.red,
                             ),
                           ),
                           SizedBox(width: 12),
                           Text(
-                            "Supprimer",
-                            style: TextStyle(
+                            t.tr('common_delete'),
+                            style: const TextStyle(
                                 fontWeight: FontWeight.w700, color: Colors.red),
                           ),
                         ],
@@ -720,6 +726,7 @@ class _CheckoutBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context);
     const freeDeliveryThreshold = 40.0;
     final missingForFree =
         (freeDeliveryThreshold - subtotal).clamp(0.0, freeDeliveryThreshold);
@@ -750,8 +757,13 @@ class _CheckoutBar extends StatelessWidget {
                 children: [
                   Text(
                     missingForFree <= 0
-                        ? "Livraison gratuite débloquée"
-                        : "Ajoutez ${missingForFree.toStringAsFixed(2)} DT pour la livraison gratuite",
+                        ? t.tr('cart_free_delivery_unlocked')
+                        : t.tr(
+                            'cart_add_for_free_delivery',
+                            params: {
+                              'amount': missingForFree.toStringAsFixed(2),
+                            },
+                          ),
                     style: const TextStyle(
                       fontWeight: FontWeight.w800,
                       color: AppColors.text,
@@ -764,7 +776,7 @@ class _CheckoutBar extends StatelessWidget {
                     child: LinearProgressIndicator(
                       minHeight: 7,
                       value: progress,
-                      backgroundColor: Colors.white,
+                      backgroundColor: Theme.of(context).colorScheme.surface,
                       valueColor: const AlwaysStoppedAnimation<Color>(
                           AppColors.bordeaux),
                     ),
@@ -773,13 +785,13 @@ class _CheckoutBar extends StatelessWidget {
               ),
             ),
           ],
-          _Line(label: "Sous-total", value: subtotal),
-          _Line(label: "Livraison", value: delivery),
+          _Line(label: t.tr('cart_subtotal'), value: subtotal),
+          _Line(label: t.tr('cart_delivery'), value: delivery),
           const SizedBox(height: 8),
           Row(
             children: [
               Expanded(
-                child: Text("Total",
+                child: Text(t.tr('cart_total'),
                     style:
                         AppTextStyles.h3.copyWith(fontWeight: FontWeight.w800)),
               ),
@@ -807,7 +819,7 @@ class _CheckoutBar extends StatelessWidget {
                     borderRadius: BorderRadius.circular(16)),
               ),
               child: Text(
-                enabled ? "Passer la commande" : "Ajoutez des produits",
+                enabled ? t.tr('cart_checkout') : t.tr('cart_add_products'),
                 style: const TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.w700,
@@ -856,86 +868,21 @@ class _EmptyCartPremium extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.lg),
-        child: Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(AppSpacing.lg),
-          decoration: AppSurface.card(radius: 22, borderAlpha: 0.80),
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  height: 92,
-                  width: 92,
-                  decoration: BoxDecoration(
-                    color: AppColors.bordeaux.withValues(alpha: 0.08),
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                        color: AppColors.bordeaux.withValues(alpha: 0.18)),
-                  ),
-                  child: const Icon(Icons.shopping_bag_outlined,
-                      color: AppColors.bordeaux, size: 42),
-                ),
-                const SizedBox(height: 12),
-                const Text(
-                  "Votre panier est vide",
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                      fontWeight: FontWeight.w800,
-                      fontSize: 18,
-                      color: AppColors.text),
-                ),
-                const SizedBox(height: 6),
-                const Text(
-                  "Ajoutez quelques produits et profitez des promos du jour.",
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.muted,
-                      height: 1.35),
-                ),
-                const SizedBox(height: 14),
-                SizedBox(
-                  height: 46,
-                  width: double.infinity,
-                    child: ElevatedButton(
-                    onPressed: onGoProducts,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.bordeaux,
-                      foregroundColor: Colors.white,
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16)),
-                    ),
-                    child: const Text("Découvrir des produits",
-                        style: TextStyle(fontWeight: FontWeight.w800)),
-                  ),
-                ),
-                const SizedBox(height: 10),
-                SizedBox(
-                  height: 44,
-                  width: double.infinity,
-                  child: OutlinedButton(
-                    onPressed: onGoCategories,
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: AppColors.bordeaux,
-                      side:
-                          BorderSide(color: AppColors.border.withValues(alpha: 0.9)),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16)),
-                    ),
-                    child: const Text("Voir les catégories",
-                        style: TextStyle(fontWeight: FontWeight.w800)),
-                  ),
-                ),
-              ],
-            ),
-          ),
+    final t = AppLocalizations.of(context);
+    return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      children: [
+        EmptyStatePanel(
+          icon: Icons.shopping_bag_outlined,
+          title: t.tr('cart_empty_title'),
+          subtitle: t.tr('cart_empty_subtitle'),
+          primaryLabel: t.tr('cart_discover_products'),
+          onPrimary: onGoProducts,
+          secondaryLabel: t.tr('cart_see_categories'),
+          onSecondary: onGoCategories,
         ),
-      ),
+      ],
     );
   }
 }
