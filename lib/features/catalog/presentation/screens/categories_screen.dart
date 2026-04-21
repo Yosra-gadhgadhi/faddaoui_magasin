@@ -6,6 +6,7 @@ import 'package:elfaddoui_app/core/widgets/icon_pill.dart';
 import 'package:elfaddoui_app/core/widgets/primary_card.dart';
 import 'package:elfaddoui_app/core/widgets/section_header.dart';
 import 'package:elfaddoui_app/core/widgets/empty_state_panel.dart';
+import 'package:elfaddoui_app/core/widgets/app_skeleton.dart';
 import 'package:elfaddoui_app/features/catalog/presentation/screens/category_products_screen.dart'
     hide Product;
 import 'package:elfaddoui_app/features/home/presentation/cubit/home_state.dart';
@@ -1002,17 +1003,17 @@ class _CategoriesSkeleton extends StatelessWidget {
       children: [
         const Row(
           children: [
-            Expanded(child: _SkeletonBox(height: 68)),
+            Expanded(child: AppSkeletonBlock(height: 68)),
             SizedBox(width: 10),
-            Expanded(child: _SkeletonBox(height: 68)),
+            Expanded(child: AppSkeletonBlock(height: 68)),
           ],
         ),
         const SizedBox(height: 10),
-        const _SkeletonBox(height: 60),
+        const AppSkeletonBlock(height: 60),
         const SizedBox(height: 10),
-        const _SkeletonBox(height: 54),
+        const AppSkeletonBlock(height: 54),
         const SizedBox(height: 10),
-        const _SkeletonBox(height: 40),
+        const AppSkeletonBlock(height: 40),
         const SizedBox(height: 10),
         GridView.builder(
           shrinkWrap: true,
@@ -1024,26 +1025,9 @@ class _CategoriesSkeleton extends StatelessWidget {
             crossAxisSpacing: 12,
             childAspectRatio: 0.68,
           ),
-          itemBuilder: (_, __) => const _SkeletonBox(height: 210),
+          itemBuilder: (_, __) => const AppSkeletonBlock(height: 210),
         ),
       ],
-    );
-  }
-}
-
-class _SkeletonBox extends StatelessWidget {
-  final double height;
-  const _SkeletonBox({required this.height});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: height,
-      decoration: AppSurface.card(
-        radius: AppRadius.lg,
-        color: AppColors.soft,
-        borderAlpha: 1,
-      ),
     );
   }
 }

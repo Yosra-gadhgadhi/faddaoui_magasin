@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:elfaddoui_app/core/l10n/tr3.dart';
 import 'package:elfaddoui_app/core/theme/app_colors.dart';
+import 'package:elfaddoui_app/core/widgets/app_snackbar.dart';
 import 'package:elfaddoui_app/core/widgets/empty_state_panel.dart';
 
 class LoyaltyVouchersScreen extends StatefulWidget {
@@ -179,18 +180,15 @@ class _LoyaltyVouchersScreenState extends State<LoyaltyVouchersScreen> {
                                     onPressed: v.expired
                                         ? null
                                         : () {
-                                            ScaffoldMessenger.of(context).showSnackBar(
-                                              SnackBar(
-                                                duration: const Duration(milliseconds: 900),
-                                                content: Text(
-                                                  tr3(
-                                                    context,
-                                                    fr: 'Bon appliqué.',
-                                                    en: 'Voucher applied.',
-                                                    ar: 'تم تطبيق القسيمة.',
-                                                  ),
-                                                ),
+                                            AppSnackBar.show(
+                                              context,
+                                              tr3(
+                                                context,
+                                                fr: 'Bon appliqué.',
+                                                en: 'Voucher applied.',
+                                                ar: 'تم تطبيق القسيمة.',
                                               ),
+                                              durationMs: 900,
                                             );
                                           },
                                     style: ElevatedButton.styleFrom(

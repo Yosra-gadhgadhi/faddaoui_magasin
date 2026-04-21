@@ -8,6 +8,7 @@ import 'package:elfaddoui_app/core/l10n/product_text_localizer.dart';
 import 'package:elfaddoui_app/core/theme/app_colors.dart';
 import 'package:elfaddoui_app/core/theme/app_spacing.dart';
 import 'package:elfaddoui_app/core/theme/app_text_styles.dart';
+import 'package:elfaddoui_app/core/widgets/app_snackbar.dart';
 
 import 'package:elfaddoui_app/features/catalog/presentation/screens/product_details_screen.dart';
 import 'package:elfaddoui_app/features/cart/presentation/cubit/cart_cubit.dart';
@@ -133,31 +134,11 @@ class _CategoryProductsScreenState extends State<CategoryProductsScreen> with Si
   }
 
   void _toastPremium(String text) {
-    ScaffoldMessenger.of(context).clearSnackBars();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        duration: const Duration(milliseconds: 1000),
-        behavior: SnackBarBehavior.floating,
-        backgroundColor: Colors.white,
-        elevation: 0,
-        margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-          side: BorderSide(color: AppColors.border.withValues(alpha: 0.75)),
-        ),
-        content: Row(
-          children: [
-            const Icon(Icons.check_circle_rounded, color: AppColors.bordeaux),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                text,
-                style: const TextStyle(fontWeight: FontWeight.w700, color: AppColors.text),
-              ),
-            ),
-          ],
-        ),
-      ),
+    AppSnackBar.show(
+      context,
+      text,
+      durationMs: 1000,
+      textWeight: FontWeight.w700,
     );
   }
 

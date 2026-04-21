@@ -8,6 +8,7 @@ import 'package:elfaddoui_app/core/l10n/product_text_localizer.dart';
 import 'package:elfaddoui_app/core/theme/app_colors.dart';
 import 'package:elfaddoui_app/core/theme/app_spacing.dart';
 import 'package:elfaddoui_app/core/theme/app_text_styles.dart';
+import 'package:elfaddoui_app/core/widgets/app_skeleton.dart';
 import 'package:elfaddoui_app/features/cart/presentation/cubit/cart_cubit.dart';
 import 'package:elfaddoui_app/features/favorites/presentation/cubit/favorites_cubit.dart';
 import 'package:elfaddoui_app/features/home/presentation/cubit/home_state.dart';
@@ -57,7 +58,6 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
   double get _price => _product?.price ?? 0;
   double? get _oldPrice => _product?.oldPrice;
   double? get _discountPct => _product?.discountPct;
-  double get _totalPrice => _price * _quantity;
   String _unit(BuildContext context) {
     final lower = _name.toLowerCase();
     if (lower.contains('1l') || lower.contains('1.5l')) return '1 L';
@@ -202,6 +202,10 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
   Widget build(BuildContext context) {
     const bg = Colors.white;
     final isFav = context.watch<FavoritesCubit>().isFavorite(widget.productId);
+    final cartQty =
+        context.select<CartCubit, int>((c) => c.state[widget.productId]?.qty ?? 0);
+    final effectiveQty = cartQty > 0 ? cartQty : _quantity;
+    final totalPrice = _price * effectiveQty;
 
     if (_loading) {
       return const Scaffold(
@@ -491,11 +495,30 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                                 color: AppColors.muted)),
                         const Spacer(),
                         _QtyPicker(
-                          value: _quantity,
-                          onMinus: () => setState(() {
-                            if (_quantity > 1) _quantity--;
-                          }),
-                          onPlus: () => setState(() => _quantity++),
+                          value: effectiveQty,
+                          onMinus: () {
+                            if (cartQty > 0) {
+                              context
+                                  .read<CartCubit>()
+                                  .setQty(widget.productId, cartQty - 1);
+                              if (cartQty - 1 <= 0) {
+                                setState(() => _quantity = 1);
+                              }
+                            } else {
+                              setState(() {
+                                if (_quantity > 1) _quantity--;
+                              });
+                            }
+                          },
+                          onPlus: () {
+                            if (cartQty > 0) {
+                              context
+                                  .read<CartCubit>()
+                                  .setQty(widget.productId, cartQty + 1);
+                            } else {
+                              setState(() => _quantity++);
+                            }
+                          },
                         ),
                       ],
                     ),
@@ -532,7 +555,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                           color: AppColors.muted),
                     ),
                     Text(
-                      "${_totalPrice.toStringAsFixed(2)} DT",
+                      "${totalPrice.toStringAsFixed(2)} DT",
                       style: const TextStyle(
                           fontWeight: FontWeight.w800,
                           color: AppColors.text,
@@ -550,19 +573,25 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                       final p = _product;
                       if (p == null) return;
                       HapticFeedback.selectionClick();
-                      context.read<CartCubit>().add(
-                            id: p.id,
-                            name: p.name,
-                            image: p.image,
-                            price: p.price,
-                            qty: _quantity,
-                          );
+                      if (cartQty > 0) {
+                        context
+                            .read<CartCubit>()
+                            .setQty(p.id, effectiveQty);
+                      } else {
+                        context.read<CartCubit>().add(
+                              id: p.id,
+                              name: p.name,
+                              image: p.image,
+                              price: p.price,
+                              qty: _quantity,
+                            );
+                      }
                       _toastPremium(
                         tr3(
                           context,
-                          fr: "Ajouté au panier x$_quantity",
-                          en: "Added to cart x$_quantity",
-                          ar: "تمت الإضافة للسلة x$_quantity",
+                          fr: "Panier mis à jour x$effectiveQty",
+                          en: "Cart updated x$effectiveQty",
+                          ar: "تم تحديث السلة x$effectiveQty",
                         ),
                       );
                     },
@@ -570,9 +599,15 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                     label: Text(
                       tr3(
                         context,
-                        fr: "Ajouter x$_quantity",
-                        en: "Add x$_quantity",
-                        ar: "إضافة x$_quantity",
+                        fr: cartQty > 0
+                            ? "Mettre à jour x$effectiveQty"
+                            : "Ajouter x$_quantity",
+                        en: cartQty > 0
+                            ? "Update x$effectiveQty"
+                            : "Add x$_quantity",
+                        ar: cartQty > 0
+                            ? "تحديث x$effectiveQty"
+                            : "إضافة x$_quantity",
                       ),
                     ),
                     style: ElevatedButton.styleFrom(
@@ -600,17 +635,8 @@ class _ProductDetailsSkeleton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    Widget box({double h = 16, double w = double.infinity}) {
-      return Container(
-        height: h,
-        width: w,
-        decoration: BoxDecoration(
-          color: AppColors.soft,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppColors.border.withValues(alpha: 0.9)),
-        ),
-      );
-    }
+    Widget box({double h = 16, double w = double.infinity}) =>
+        AppSkeletonBlock(height: h, width: w, radius: 12);
 
     return ListView(
       physics: const NeverScrollableScrollPhysics(),

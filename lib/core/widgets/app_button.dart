@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
+import 'loading_indicator.dart';
 
 class AppButton extends StatelessWidget {
   final String label;
@@ -29,11 +30,7 @@ class AppButton extends StatelessWidget {
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         ),
         child: loading
-            ? const SizedBox(
-                width: 18,
-                height: 18,
-                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-              )
+            ? const AppButtonLoadingIndicator(size: 18, strokeWidth: 2)
             : Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [

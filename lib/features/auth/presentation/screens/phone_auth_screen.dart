@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:elfaddoui_app/app/routes.dart';
 import 'package:elfaddoui_app/core/l10n/tr3.dart';
 import 'package:elfaddoui_app/core/theme/app_colors.dart';
+import 'package:elfaddoui_app/core/widgets/loading_indicator.dart';
 
 class PhoneAuthScreen extends StatefulWidget {
   const PhoneAuthScreen({super.key});
@@ -186,14 +187,7 @@ class _PhoneAuthScreenState extends State<PhoneAuthScreen> {
                     ),
                   ),
                   child: _submitting
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2.1,
-                            color: Colors.white,
-                          ),
-                        )
+                      ? const AppButtonLoadingIndicator()
                       : Text(
                           tr3(context, fr: 'Continuer', en: 'Continue', ar: 'متابعة'),
                           style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800),

@@ -5,6 +5,7 @@ import 'package:elfaddoui_app/core/theme/app_spacing.dart';
 import 'package:elfaddoui_app/core/widgets/primary_card.dart';
 import 'package:elfaddoui_app/core/widgets/section_header.dart';
 import 'package:elfaddoui_app/core/widgets/empty_state_panel.dart';
+import 'package:elfaddoui_app/core/widgets/app_snackbar.dart';
 import 'package:elfaddoui_app/features/catalog/presentation/screens/categories_screen.dart';
 import 'package:elfaddoui_app/features/catalog/presentation/screens/category_products_screen.dart';
 import 'package:elfaddoui_app/features/catalog/presentation/screens/product_details_screen.dart';
@@ -49,45 +50,19 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
 
   void _toast(BuildContext context, String text) {
     if (!context.mounted) return;
-    final messenger = ScaffoldMessenger.maybeOf(context);
-    if (messenger == null) return;
-    messenger
-      ..clearSnackBars()
-      ..showSnackBar(
-        SnackBar(
-          behavior: SnackBarBehavior.floating,
-          backgroundColor: const Color(0xFF111111),
-          duration: const Duration(milliseconds: 1200),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-          content: Text(
-            text,
-            style: const TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-        ),
-      );
+    AppSnackBar.show(context, text, durationMs: 1200);
   }
 
   void _removeWithUndo(BuildContext context, FavoriteItem item) {
     final t = AppLocalizations.of(context);
     context.read<FavoritesCubit>().remove(item.id);
-    final messenger = ScaffoldMessenger.maybeOf(context);
-    if (messenger == null) return;
-    messenger
-      ..removeCurrentSnackBar()
-      ..clearSnackBars()
-      ..showSnackBar(
-        SnackBar(
-          behavior: SnackBarBehavior.floating,
-          duration: const Duration(milliseconds: 900),
-          margin: const EdgeInsets.fromLTRB(12, 0, 12, 92),
-          content: Text(
-            t.tr('favorites_removed_item', params: {'name': localizeProductText(context, item.name)}),
-          ),
-        ),
-      );
+    AppSnackBar.show(
+      context,
+      t.tr('favorites_removed_item', params: {'name': localizeProductText(context, item.name)}),
+      durationMs: 900,
+      marginBottom: 92,
+      icon: Icons.heart_broken_rounded,
+    );
   }
 
   Future<bool> _confirmDialog(
@@ -201,6 +176,25 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
       context,
       t.tr('favorites_added_to_cart_item', params: {'name': localizeProductText(context, item.name)}),
     );
+  }
+
+  void _incCart(BuildContext context, FavoriteItem item) {
+    final cart = context.read<CartCubit>();
+    final current = cart.state[item.id]?.qty ?? 0;
+    if (current <= 0) {
+      _addToCart(context, item);
+      return;
+    }
+    _haptic();
+    cart.setQty(item.id, current + 1);
+  }
+
+  void _decCart(BuildContext context, FavoriteItem item) {
+    final cart = context.read<CartCubit>();
+    final current = cart.state[item.id]?.qty ?? 0;
+    if (current <= 0) return;
+    _haptic();
+    cart.setQty(item.id, current - 1);
   }
 
   void _addAllToCart(BuildContext context, List<FavoriteItem> items) {
@@ -318,7 +312,8 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
         builder: (context, favs) {
           final all = favs.values.toList();
           final items = _buildView(all);
-          final cartIds = context.watch<CartCubit>().state.keys.toSet();
+          final cart = context.watch<CartCubit>().state;
+          final cartIds = cart.keys.toSet();
 
           return Column(
             children: [
@@ -406,6 +401,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                                   child: _FavoriteCard(
                                     item: it,
                                     inCart: cartIds.contains(it.id),
+                                    cartQty: cart[it.id]?.qty ?? 0,
                                     onOpen: () {
                                       Navigator.push(
                                         context,
@@ -425,6 +421,8 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                                       _toast(context, t.tr('favorites_updated'));
                                     },
                                     onAddToCart: () => _addToCart(context, it),
+                                    onIncCart: () => _incCart(context, it),
+                                    onDecCart: () => _decCart(context, it),
                                     onRemove: () async {
                                       final ok = await _confirmDialog(
                                         context,
@@ -696,17 +694,23 @@ class _SearchField extends StatelessWidget {
 class _FavoriteCard extends StatelessWidget {
   final FavoriteItem item;
   final bool inCart;
+  final int cartQty;
   final VoidCallback onOpen;
   final VoidCallback onToggle;
   final VoidCallback onAddToCart;
+  final VoidCallback onIncCart;
+  final VoidCallback onDecCart;
   final VoidCallback onRemove;
 
   const _FavoriteCard({
     required this.item,
     required this.inCart,
+    required this.cartQty,
     required this.onOpen,
     required this.onToggle,
     required this.onAddToCart,
+    required this.onIncCart,
+    required this.onDecCart,
     required this.onRemove,
   });
 
@@ -764,16 +768,18 @@ class _FavoriteCard extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(width: 6),
-                      _IconAction(
-                        icon: inCart
-                            ? Icons.check_rounded
-                            : Icons.add_shopping_cart_rounded,
-                        color: inCart
-                            ? const Color(0xFF138A57)
-                            : AppColors.bordeauxDark,
-                        isActive: inCart,
-                        onTap: onAddToCart,
-                      ),
+                      if (!inCart || cartQty <= 0)
+                        _IconAction(
+                          icon: Icons.add_shopping_cart_rounded,
+                          color: AppColors.bordeauxDark,
+                          onTap: onAddToCart,
+                        )
+                      else
+                        _QtyMiniControl(
+                          qty: cartQty,
+                          onPlus: onIncCart,
+                          onMinus: onDecCart,
+                        ),
                       const SizedBox(width: 6),
                       _IconAction(
                         icon: Icons.favorite_rounded,
@@ -889,6 +895,69 @@ class _IconAction extends StatelessWidget {
           ),
         ),
         child: Icon(icon, size: 18, color: color),
+      ),
+    );
+  }
+}
+
+class _QtyMiniControl extends StatelessWidget {
+  final int qty;
+  final VoidCallback onPlus;
+  final VoidCallback onMinus;
+
+  const _QtyMiniControl({
+    required this.qty,
+    required this.onPlus,
+    required this.onMinus,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 36,
+      padding: const EdgeInsets.symmetric(horizontal: 2),
+      decoration: BoxDecoration(
+        color: AppColors.bordeaux.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(11),
+        border: Border.all(
+          color: AppColors.bordeaux.withValues(alpha: 0.24),
+          width: 0.9,
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          InkWell(
+            borderRadius: BorderRadius.circular(9),
+            onTap: onMinus,
+            child: const SizedBox(
+              width: 24,
+              height: 32,
+              child: Icon(Icons.remove_rounded, size: 15, color: AppColors.bordeauxDark),
+            ),
+          ),
+          SizedBox(
+            width: 22,
+            child: Text(
+              '$qty',
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: AppColors.text,
+                fontWeight: FontWeight.w800,
+                fontSize: 12.5,
+              ),
+            ),
+          ),
+          InkWell(
+            borderRadius: BorderRadius.circular(9),
+            onTap: onPlus,
+            child: const SizedBox(
+              width: 24,
+              height: 32,
+              child: Icon(Icons.add_rounded, size: 15, color: AppColors.bordeauxDark),
+            ),
+          ),
+        ],
       ),
     );
   }

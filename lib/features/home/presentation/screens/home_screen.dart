@@ -10,6 +10,8 @@ import 'package:elfaddoui_app/core/l10n/product_text_localizer.dart';
 import 'package:elfaddoui_app/core/theme/app_colors.dart';
 import 'package:elfaddoui_app/core/theme/app_spacing.dart';
 import 'package:elfaddoui_app/core/theme/app_text_styles.dart';
+import 'package:elfaddoui_app/core/widgets/app_skeleton.dart';
+import 'package:elfaddoui_app/core/widgets/app_snackbar.dart';
 import 'package:elfaddoui_app/core/widgets/section_header.dart' as core_widgets;
 import 'package:elfaddoui_app/features/cart/presentation/cubit/cart_cubit.dart';
 import 'package:elfaddoui_app/features/favorites/presentation/cubit/favorites_cubit.dart';
@@ -625,12 +627,9 @@ class _HomeScreenState extends State<HomeScreen> {
                         etaLabel: s.etaLabel,
                         onTap: () {
                           HapticFeedback.lightImpact();
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                t.tr('home_location_change_soon'),
-                              ),
-                            ),
+                          AppSnackBar.show(
+                            context,
+                            t.tr('home_location_change_soon'),
                           );
                         },
                       ),
@@ -2498,7 +2497,7 @@ class _FadeInNetworkImage extends StatelessWidget {
         },
         loadingBuilder: (context, child, loadingProgress) {
           if (loadingProgress == null) return child;
-          return _ShimmerBlock(height: height, width: width, radius: 12);
+          return AppSkeletonBlock(height: height, width: width, radius: 12);
         },
         errorBuilder: (_, __, ___) => _ImageFallback(
           height: height,
@@ -2580,28 +2579,43 @@ class _ShopProductCardFineState extends State<_ShopProductCardFine> {
       image: p.image,
       price: p.price,
     );
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        behavior: SnackBarBehavior.floating,
-        duration: const Duration(milliseconds: 950),
-        content: Text(
-          _htr(
-            context,
-            fr: "${localizeProductText(context, p.name)} ajouté au panier",
-            en: "${localizeProductText(context, p.name)} added to cart",
-            ar: "تمت إضافة ${localizeProductText(context, p.name)} إلى السلة",
-          ),
-        ),
+    AppSnackBar.show(
+      context,
+      _htr(
+        context,
+        fr: "${localizeProductText(context, p.name)} ajouté au panier",
+        en: "${localizeProductText(context, p.name)} added to cart",
+        ar: "تمت إضافة ${localizeProductText(context, p.name)} إلى السلة",
       ),
+      durationMs: 950,
     );
     await Future.delayed(_UiTokens.slow);
     if (mounted) setState(() => _adding = false);
+  }
+
+  void _incCartQty(Product p, int currentQty) {
+    final cart = context.read<CartCubit>();
+    if (currentQty <= 0) {
+      _addToCart(p);
+      return;
+    }
+    HapticFeedback.selectionClick();
+    cart.setQty(p.id, currentQty + 1);
+  }
+
+  void _decCartQty(Product p, int currentQty) {
+    final cart = context.read<CartCubit>();
+    if (currentQty <= 0) return;
+    HapticFeedback.selectionClick();
+    cart.setQty(p.id, currentQty - 1);
   }
 
   @override
   Widget build(BuildContext context) {
     final p = widget.p;
     final discount = p.discountPct?.round();
+    final cartQty =
+        context.select<CartCubit, int>((c) => c.state[p.id]?.qty ?? 0);
     final isFav =
         context.select<FavoritesCubit, bool>((c) => c.isFavorite(p.id));
     return AnimatedScale(
@@ -2673,18 +2687,14 @@ class _ShopProductCardFineState extends State<_ShopProductCardFine> {
                                     price: p.price,
                                   ),
                                 );
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                behavior: SnackBarBehavior.floating,
-                                duration: const Duration(milliseconds: 750),
-                                content: Text(
-                                  wasFav
-                                      ? AppLocalizations.of(context)
-                                          .tr('favorites_removed')
-                                      : AppLocalizations.of(context)
-                                          .tr('favorites_added'),
-                                ),
-                              ),
+                            AppSnackBar.show(
+                              context,
+                              wasFav
+                                  ? AppLocalizations.of(context)
+                                      .tr('favorites_removed')
+                                  : AppLocalizations.of(context)
+                                      .tr('favorites_added'),
+                              durationMs: 750,
                             );
                           },
                           child: Container(
@@ -2816,57 +2826,123 @@ class _ShopProductCardFineState extends State<_ShopProductCardFine> {
                       AnimatedScale(
                         scale: _adding ? 1.02 : 1,
                         duration: const Duration(milliseconds: 140),
-                        child: SizedBox(
-                          width: double.infinity,
-                          child: ElevatedButton.icon(
-                            onPressed: () => _addToCart(p),
-                            icon: Icon(
-                              _adding ? Icons.check_rounded : Icons.add_rounded,
-                              size: 16,
-                            ),
-                            label: Text(
-                              _adding
-                                  ? _htr(
-                                      context,
-                                      fr: "Ajouté",
-                                      en: "Added",
-                                      ar: "تمت الإضافة",
-                                    )
-                                  : _htr(
-                                      context,
-                                      fr: "Ajouter",
-                                      en: "Add",
-                                      ar: "أضف",
+                        child: cartQty == 0
+                            ? SizedBox(
+                                width: double.infinity,
+                                child: ElevatedButton.icon(
+                                  onPressed: () => _addToCart(p),
+                                  icon: Icon(
+                                    _adding
+                                        ? Icons.check_rounded
+                                        : Icons.add_rounded,
+                                    size: 16,
+                                  ),
+                                  label: Text(
+                                    _adding
+                                        ? _htr(
+                                            context,
+                                            fr: "Ajouté",
+                                            en: "Added",
+                                            ar: "تمت الإضافة",
+                                          )
+                                        : _htr(
+                                            context,
+                                            fr: "Ajouter",
+                                            en: "Add",
+                                            ar: "أضف",
+                                          ),
+                                  ),
+                                  style: ElevatedButton.styleFrom(
+                                    minimumSize: const Size.fromHeight(34),
+                                    elevation: 0,
+                                    backgroundColor: _adding
+                                        ? AppColors.bordeaux
+                                        : AppColors.bordeaux
+                                            .withValues(alpha: 0.10),
+                                    foregroundColor: _adding
+                                        ? Colors.white
+                                        : AppColors.bordeauxDark,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(11),
+                                      side: BorderSide(
+                                        color: AppColors.bordeaux
+                                            .withValues(alpha: 0.22),
+                                      ),
                                     ),
-                            ),
-                            style: ElevatedButton.styleFrom(
-                              minimumSize: const Size.fromHeight(34),
-                              elevation: 0,
-                              backgroundColor: _adding
-                                  ? AppColors.bordeaux
-                                  : AppColors.bordeaux.withValues(alpha: 0.10),
-                              foregroundColor: _adding
-                                  ? Colors.white
-                                  : AppColors.bordeauxDark,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(11),
-                                side: BorderSide(
-                                  color: AppColors.bordeaux.withValues(alpha: 0.22),
+                                    textStyle: const TextStyle(
+                                      fontWeight: FontWeight.w800,
+                                      fontSize: 12.5,
+                                    ),
+                                  ),
+                                ),
+                              )
+                            : Container(
+                                height: 34,
+                                decoration: BoxDecoration(
+                                  color: AppColors.bordeaux.withValues(alpha: 0.10),
+                                  borderRadius: BorderRadius.circular(11),
+                                  border: Border.all(
+                                    color: AppColors.bordeaux
+                                        .withValues(alpha: 0.22),
+                                  ),
+                                ),
+                                child: Row(
+                                  children: [
+                                    _QtyEdgeButton(
+                                      icon: Icons.remove_rounded,
+                                      onTap: () => _decCartQty(p, cartQty),
+                                    ),
+                                    Expanded(
+                                      child: Text(
+                                        "$cartQty",
+                                        textAlign: TextAlign.center,
+                                        style: const TextStyle(
+                                          color: AppColors.text,
+                                          fontWeight: FontWeight.w800,
+                                          fontSize: 12.8,
+                                        ),
+                                      ),
+                                    ),
+                                    _QtyEdgeButton(
+                                      icon: Icons.add_rounded,
+                                      onTap: () => _incCartQty(p, cartQty),
+                                    ),
+                                  ],
                                 ),
                               ),
-                              textStyle: const TextStyle(
-                                fontWeight: FontWeight.w800,
-                                fontSize: 12.5,
-                              ),
-                            ),
-                          ),
-                        ),
                       ),
                     ],
                   ),
                 ),
               ],
             ),
+        ),
+      ),
+    );
+  }
+}
+
+class _QtyEdgeButton extends StatelessWidget {
+  final IconData icon;
+  final VoidCallback onTap;
+
+  const _QtyEdgeButton({
+    required this.icon,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(10),
+      child: SizedBox(
+        width: 34,
+        height: 34,
+        child: Icon(
+          icon,
+          size: 16,
+          color: AppColors.bordeauxDark,
         ),
       ),
     );
@@ -3780,16 +3856,13 @@ class _SmartSearchSheetFineState extends State<_SmartSearchSheetFine> {
                     IconButton(
                       icon: const Icon(Icons.mic_none_rounded),
                       onPressed: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(
-                              _htr(
-                                context,
-                                fr: "Recherche vocale bientôt disponible.",
-                                en: "Voice search coming soon.",
-                                ar: "البحث الصوتي قريبًا.",
-                              ),
-                            ),
+                        AppSnackBar.show(
+                          context,
+                          _htr(
+                            context,
+                            fr: "Recherche vocale bientôt disponible.",
+                            en: "Voice search coming soon.",
+                            ar: "البحث الصوتي قريبًا.",
                           ),
                         );
                       },
@@ -3797,16 +3870,13 @@ class _SmartSearchSheetFineState extends State<_SmartSearchSheetFine> {
                     IconButton(
                       icon: const Icon(Icons.qr_code_scanner_rounded),
                       onPressed: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(
-                              _htr(
-                                context,
-                                fr: "Scan produit bientôt disponible.",
-                                en: "Product scan coming soon.",
-                                ar: "مسح المنتج قريبًا.",
-                              ),
-                            ),
+                        AppSnackBar.show(
+                          context,
+                          _htr(
+                            context,
+                            fr: "Scan produit bientôt disponible.",
+                            en: "Product scan coming soon.",
+                            ar: "مسح المنتج قريبًا.",
                           ),
                         );
                       },
@@ -4279,7 +4349,7 @@ class _HomeSkeletonFine extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     Widget box({double h = 16, double w = double.infinity}) =>
-        _ShimmerBlock(height: h, width: w, radius: 14);
+        AppSkeletonBlock(height: h, width: w, radius: 14);
 
     return ListView(
       padding: const EdgeInsets.all(16),
@@ -4317,67 +4387,6 @@ class _HomeSkeletonFine extends StatelessWidget {
           itemBuilder: (_, __) => box(h: 210),
         ),
       ],
-    );
-  }
-}
-
-class _ShimmerBlock extends StatefulWidget {
-  final double height;
-  final double width;
-  final double radius;
-  const _ShimmerBlock({
-    required this.height,
-    required this.width,
-    required this.radius,
-  });
-
-  @override
-  State<_ShimmerBlock> createState() => _ShimmerBlockState();
-}
-
-class _ShimmerBlockState extends State<_ShimmerBlock>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _controller;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1300),
-    )..repeat();
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _controller,
-      builder: (context, child) {
-        final x = -1 + (_controller.value * 2);
-        return Container(
-          height: widget.height,
-          width: widget.width,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(widget.radius),
-            border: Border.all(color: AppColors.border),
-            gradient: LinearGradient(
-              begin: Alignment(x - 1, 0),
-              end: Alignment(x + 1, 0),
-              colors: const [
-                Color(0xFFF2EEF2),
-                Color(0xFFF8F5F8),
-                Color(0xFFF2EEF2),
-              ],
-            ),
-          ),
-        );
-      },
     );
   }
 }

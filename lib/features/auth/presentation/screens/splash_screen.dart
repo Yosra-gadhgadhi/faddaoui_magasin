@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:elfaddoui_app/app/routes.dart';
 import 'package:elfaddoui_app/core/theme/app_colors.dart';
+import 'package:elfaddoui_app/core/widgets/loading_indicator.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -58,9 +59,9 @@ class _SplashScreenState extends State<SplashScreen> {
             SizedBox(
               width: 24,
               height: 24,
-              child: CircularProgressIndicator(
+              child: AppLoadingIndicator(
+                size: 24,
                 strokeWidth: 2.5,
-                color: AppColors.bordeaux,
               ),
             ),
             SizedBox(height: 10),
