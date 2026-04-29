@@ -89,9 +89,10 @@ class _CheckoutStep2AddressState extends State<CheckoutStep2Address> {
     final border = AppColors.bordeaux.withValues(alpha: 0.18);
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: Theme.of(context).colorScheme.surface,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        toolbarHeight: 78,
+        backgroundColor: Theme.of(context).colorScheme.surface,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         centerTitle: true,

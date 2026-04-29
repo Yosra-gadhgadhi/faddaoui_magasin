@@ -1,6 +1,6 @@
 import 'package:elfaddoui_app/core/theme/app_colors.dart';
 import 'package:elfaddoui_app/core/l10n/app_localizations.dart';
-import 'package:elfaddoui_app/core/l10n/product_text_localizer.dart';
+import 'package:elfaddoui_app/core/network/api_constants.dart';
 import 'package:elfaddoui_app/core/theme/app_spacing.dart';
 import 'package:elfaddoui_app/core/widgets/icon_pill.dart';
 import 'package:elfaddoui_app/core/widgets/primary_card.dart';
@@ -9,7 +9,6 @@ import 'package:elfaddoui_app/core/widgets/empty_state_panel.dart';
 import 'package:elfaddoui_app/core/widgets/app_skeleton.dart';
 import 'package:elfaddoui_app/features/catalog/presentation/screens/category_products_screen.dart'
     hide Product;
-import 'package:elfaddoui_app/features/home/presentation/cubit/home_state.dart';
 import 'package:elfaddoui_app/features/home/services/ai_home_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -29,46 +28,9 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
   String? _error;
 
   int _filterIndex = 0;
-  final _fixedCategoryKeys = const <String>[
-    'electromenager',
-    'tv multimedia',
-    'cuisine vaisselle',
-    'fruits et legumes',
-    'boissons',
-    'epicerie',
-  ];
 
   List<_CategoryUi> _all = const [];
   List<_CategoryUi> _view = const [];
-
-  final Map<String, List<String>> _synonyms = const {
-    'fruits': ['fruit', 'pomme', 'banane', 'orange', 'legume', 'salade', 'khodhra', 'ghalla'],
-    'boissons': ['boisson', 'jus', 'eau', 'soda', 'cafe', 'the'],
-    'epicerie': ['epicerie', 'pates', 'riz', 'huile', 'conserve'],
-    'laitiers': ['lait', 'yaourt', 'fromage', 'beurre'],
-    'electromenager': [
-      'electro',
-      'electromenager',
-      'frigo',
-      'fregidaire',
-      'frigidaire',
-      'ghasala',
-      'machine',
-      'lavelinge',
-      'gaz',
-      'gaziniere',
-      'four',
-      'tv',
-      'tele',
-      'television',
-      'microondes',
-    ],
-    'vaisselle': ['ma3oun', 'maoun', 'plat', 'assiette', 'vaisselle', 'casserole', 'poele', 'ustensile'],
-    'maison': ['maison', 'menage', 'nettoyage', 'lessive', 'savon', 'detergent'],
-    'promo': ['promo', 'promotion', 'remise', 'discount'],
-    'bio': ['bio', 'organic', 'naturel'],
-    'populaire': ['populaire', 'top', 'tendance', 'best'],
-  };
 
   @override
   void initState() {
@@ -84,26 +46,16 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
   }
 
   Future<void> _load() async {
+    if (!mounted) return;
     setState(() {
       _loading = true;
       _error = null;
     });
 
     try {
-      final data = await _api.bootstrapHome();
-      final products = _uniqById([
-        ...data.deals,
-        ...data.forYou,
-        ...data.recent,
-      ]);
-
-      final grouped = <String, List<Product>>{};
-      for (final p in products) {
-        final key = _categoryKey(p);
-        grouped.putIfAbsent(key, () => <Product>[]).add(p);
-      }
-
-      final built = _buildFixedCategories(grouped);
+      final categories = await _api.getPublicCategories();
+      if (!mounted) return;
+      final built = categories.map(_toPublicCategoryUi).toList(growable: false);
 
       setState(() {
         _all = built;
@@ -111,8 +63,9 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
       });
       _applyFilters();
     } catch (_) {
+      if (!mounted) return;
       setState(() {
-        _all = _fallback();
+        _all = const [];
         _loading = false;
         _error = AppLocalizations.of(context).tr('categories_server_unavailable');
       });
@@ -120,217 +73,33 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
     }
   }
 
-  List<_CategoryUi> _buildFixedCategories(Map<String, List<Product>> grouped) {
-    final fallbackMap = {for (final c in _fallback()) c.key: c};
-    final out = <_CategoryUi>[];
-
-    for (final key in _fixedCategoryKeys) {
-      final items = grouped[key] ?? const <Product>[];
-      if (items.isEmpty) {
-        final base = fallbackMap[key];
-        if (base != null) out.add(base);
-        continue;
-      }
-      out.add(_toCategory(key, items));
-    }
-
-    return out;
-  }
-
-  List<Product> _uniqById(List<Product> list) {
-    final map = <String, Product>{};
-    for (final p in list) {
-      map[p.id] = p;
-    }
-    return map.values.toList(growable: false);
-  }
-
-  String _categoryKey(Product p) {
-    final fromApi = _normalize(p.category ?? '');
-    if (fromApi.isNotEmpty) return _normalizeCategoryKey(fromApi);
-
-    final n = _normalize(p.name);
-    return _normalizeCategoryKey(n);
-  }
-
-  String _normalizeCategoryKey(String input) {
-    final n = _normalize(input);
-    bool has(List<String> keys) => keys.any(n.contains);
-
-    if (has([
-      'tv',
-      'tele',
-      'television',
-      'ecran',
-      'multimedia',
-    ])) {
-      return 'tv multimedia';
-    }
-
-    if (has([
-      'electro',
-      'electromenager',
-      'frigo',
-      'fregidaire',
-      'frigidaire',
-      'ghasala',
-      'lave linge',
-      'machine a laver',
-      'gaz',
-      'gaziniere',
-      'four',
-      'micro ondes',
-      'microondes',
-    ])) {
-      return 'electromenager';
-    }
-
-    if (has([
-      'ma3oun',
-      'maoun',
-      'plat',
-      'assiette',
-      'vaisselle',
-      'ustensile',
-      'casserole',
-      'poele',
-      'cuisine',
-    ])) {
-      return 'cuisine vaisselle';
-    }
-
-    if (has([
-      'lait',
-      'yaourt',
-      'fromage',
-      'beurre',
-    ])) {
-      return 'produits laitiers';
-    }
-    if (has(['jus', 'eau', 'boisson', 'soda', 'cafe', 'the'])) {
-      return 'boissons';
-    }
-    if (has([
-      'fruit',
-      'pomme',
-      'banane',
-      'orange',
-      'legume',
-      'khodhra',
-      'ghalla',
-      'tomate',
-    ])) {
-      return 'fruits et legumes';
-    }
-    if (has([
-      'maison',
-      'menage',
-      'nettoyage',
-      'lessive',
-      'savon',
-      'detergent',
-    ])) {
-      return 'maison';
-    }
-    return 'epicerie';
-  }
-
-  _CategoryUi _toCategory(String key, List<Product> items) {
-    final promoCount = items.where((e) => (e.discountPct ?? 0) > 0).length;
-    final avgReviews = items.isEmpty
-        ? 0
-        : (items.fold<int>(0, (s, e) => s + e.reviews) / items.length).toInt();
-
-    final tags = <String>[];
-    if (promoCount > 0) tags.add('Promos');
-    if (avgReviews >= 140) tags.add('Populaires');
-    if (key.contains('fruit') ||
-        key.contains('beaute') ||
-        key.contains('hygiene')) {
-      tags.add('Bio');
-    }
-    if (items.length <= 3) tags.add('Nouveaux');
-    if (tags.isEmpty) tags.add('Populaires');
-
-    final visual = _visualFor(key);
+  _CategoryUi _toPublicCategoryUi(Map<String, dynamic> raw) {
+    String key = (raw['key'] ?? raw['name'] ?? '').toString().trim();
+    key = key.isEmpty ? 'category' : key;
+    final name = (raw['name'] ?? '').toString().trim();
+    final image = ApiConstants.resolveAssetUrl((raw['imageUrl'] ?? '').toString().trim());
+    final count = _toInt(raw['productCount']);
+    final promoCount = _toInt(raw['promoCount']);
+    final rawTags = raw['tags'];
+    final tags = rawTags is List
+        ? rawTags.map((e) => e.toString()).where((e) => e.trim().isNotEmpty).toList(growable: false)
+        : const <String>[];
     return _CategoryUi(
       key: key,
-      name: _displayName(key),
-      image: _categoryCover(key, items.first.image),
-      count: items.length,
+      name: name.isNotEmpty ? name : key,
+      image: image,
+      count: count,
       promoCount: promoCount,
-      tags: tags,
-      icon: visual.$1,
-      color: visual.$2,
+      tags: tags.isEmpty ? const ['Populaires'] : tags,
+      icon: Icons.shopping_bag_rounded,
+      color: const Color(0xFFF3F3F3),
     );
   }
 
-  String _displayName(String key) {
-    if (key.contains('electromenager')) return 'Électroménager';
-    if (key.contains('tv multimedia')) return 'TV & Multimédia';
-    if (key.contains('cuisine vaisselle')) return 'Cuisine & Vaisselle';
-    if (key.contains('fruit')) return 'Fruits & Légumes';
-    if (key.contains('boisson')) return 'Boissons';
-    if (key.contains('lait')) return 'Produits Laitiers';
-    if (key.contains('epicerie')) return 'Épicerie';
-    if (key.contains('viande') || key.contains('poisson')) {
-      return 'Viandes & Poissons';
-    }
-    if (key.contains('menager') || key.contains('maison')) return 'Maison';
-    return _capitalizeWords(key);
-  }
-
-  (IconData, Color) _visualFor(String key) {
-    if (key.contains('electromenager')) {
-      return (Icons.kitchen_rounded, const Color(0xFFEFF2FF));
-    }
-    if (key.contains('tv multimedia')) {
-      return (Icons.tv_rounded, const Color(0xFFEAF4FF));
-    }
-    if (key.contains('cuisine vaisselle')) {
-      return (Icons.restaurant_rounded, const Color(0xFFFFF4EC));
-    }
-    if (key.contains('fruit')) {
-      return (Icons.eco_rounded, const Color(0xFFE8F5EC));
-    }
-    if (key.contains('boisson')) {
-      return (Icons.local_drink_rounded, const Color(0xFFEAF4FF));
-    }
-    if (key.contains('lait')) {
-      return (Icons.breakfast_dining_rounded, const Color(0xFFEFF0FF));
-    }
-    if (key.contains('epicerie')) {
-      return (Icons.storefront_rounded, const Color(0xFFFFF3E8));
-    }
-    if (key.contains('viande') || key.contains('poisson')) {
-      return (Icons.set_meal_rounded, const Color(0xFFFFECEC));
-    }
-    if (key.contains('maison')) {
-      return (Icons.cleaning_services_rounded, const Color(0xFFF3F3F3));
-    }
-    return (Icons.shopping_bag_rounded, const Color(0xFFF3F3F3));
-  }
-
-  String _categoryCover(String key, String fallback) {
-    if (key.contains('electromenager')) {
-      return 'https://images.pexels.com/photos/5591838/pexels-photo-5591838.jpeg?auto=compress&cs=tinysrgb&w=1200';
-    }
-    if (key.contains('tv multimedia')) {
-      return 'https://images.pexels.com/photos/5825570/pexels-photo-5825570.jpeg?auto=compress&cs=tinysrgb&w=1200';
-    }
-    if (key.contains('cuisine vaisselle')) {
-      return 'https://images.pexels.com/photos/4226805/pexels-photo-4226805.jpeg?auto=compress&cs=tinysrgb&w=1200';
-    }
-    if (key.contains('fruit')) {
-      return 'https://images.pexels.com/photos/1435904/pexels-photo-1435904.jpeg?auto=compress&cs=tinysrgb&w=1200';
-    }
-    if (key.contains('boisson')) {
-      return 'https://images.pexels.com/photos/96974/pexels-photo-96974.jpeg?auto=compress&cs=tinysrgb&w=1200';
-    }
-    if (key.contains('maison')) {
-      return 'https://images.pexels.com/photos/4239031/pexels-photo-4239031.jpeg?auto=compress&cs=tinysrgb&w=1200';
-    }
-    return fallback;
+  int _toInt(dynamic value, {int fallback = 0}) {
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    return int.tryParse('$value') ?? fallback;
   }
 
   void _applyFilters() {
@@ -347,11 +116,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
       return searchOk && chipOk;
     }).toList();
 
-    list.sort((a, b) {
-      final ai = _fixedCategoryKeys.indexOf(a.key);
-      final bi = _fixedCategoryKeys.indexOf(b.key);
-      return ai.compareTo(bi);
-    });
+    list.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
 
     if (!mounted) return;
     setState(() => _view = list);
@@ -359,123 +124,29 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
 
   bool _matchesCategory(_CategoryUi c, String q) {
     final name = _normalize(c.name);
-    if (name.contains(q)) return true;
-    if (c.tags.any((t) => _normalize(t).contains(q))) return true;
-
-    for (final entry in _synonyms.entries) {
-      final bucket = entry.key;
-      final words = entry.value;
-      final hit =
-          bucket.contains(q) || words.any((w) => _normalize(w).contains(q));
-      if (!hit) continue;
-      if (name.contains(bucket)) return true;
-      if (bucket == 'promo' && c.tags.contains('Promos')) return true;
-      if (bucket == 'bio' && c.tags.contains('Bio')) return true;
-      if (bucket == 'populaire' && c.tags.contains('Populaires')) return true;
-    }
-
-    final tokens = name.split(' ').where((e) => e.length >= 3);
-    for (final t in tokens) {
-      final d = _levenshtein(q, t);
-      if (d <= 1) return true;
-      if (q.length >= 5 && d == 2) return true;
-    }
-    return false;
+    final key = _normalize(c.key);
+    if (name.contains(q) || key.contains(q)) return true;
+    return c.tags.any((t) => _normalize(t).contains(q));
   }
 
   List<String> _suggestions() {
     final q = _normalize(_search.text);
-    if (q.isEmpty) return const ['lait', 'fruit', 'promo', 'boisson'];
+    if (q.isEmpty) return const [];
     final out = <String>{};
     for (final c in _all) {
       final n = _normalize(c.name);
       if (n.contains(q) || n.startsWith(q)) out.add(c.name);
     }
-    for (final entry in _synonyms.entries) {
-      if (entry.key.contains(q) ||
-          entry.value.any((w) => _normalize(w).contains(q))) {
-        out.add(entry.key);
-        out.addAll(entry.value.take(2));
-      }
-    }
     return out.take(8).toList(growable: false);
   }
-
-  List<_CategoryUi> _fallback() => const [
-        _CategoryUi(
-          key: 'electromenager',
-          name: 'Électroménager',
-          image:
-              'https://images.pexels.com/photos/5591838/pexels-photo-5591838.jpeg?auto=compress&cs=tinysrgb&w=1200',
-          count: 11,
-          promoCount: 2,
-          tags: ['Populaires', 'Nouveaux'],
-          icon: Icons.kitchen_rounded,
-          color: Color(0xFFEFF2FF),
-        ),
-        _CategoryUi(
-          key: 'tv multimedia',
-          name: 'TV & Multimédia',
-          image:
-              'https://images.pexels.com/photos/5825570/pexels-photo-5825570.jpeg?auto=compress&cs=tinysrgb&w=1200',
-          count: 7,
-          promoCount: 1,
-          tags: ['Populaires'],
-          icon: Icons.tv_rounded,
-          color: Color(0xFFEAF4FF),
-        ),
-        _CategoryUi(
-          key: 'cuisine vaisselle',
-          name: 'Cuisine & Vaisselle',
-          image:
-              'https://images.pexels.com/photos/4226805/pexels-photo-4226805.jpeg?auto=compress&cs=tinysrgb&w=1200',
-          count: 13,
-          promoCount: 3,
-          tags: ['Promos', 'Populaires'],
-          icon: Icons.restaurant_rounded,
-          color: Color(0xFFFFF4EC),
-        ),
-        _CategoryUi(
-          key: 'boissons',
-          name: 'Boissons',
-          image:
-              'https://images.pexels.com/photos/616836/pexels-photo-616836.jpeg?auto=compress&cs=tinysrgb&w=1200',
-          count: 9,
-          promoCount: 2,
-          tags: ['Promos', 'Populaires'],
-          icon: Icons.local_drink_rounded,
-          color: Color(0xFFEAF4FF),
-        ),
-        _CategoryUi(
-          key: 'epicerie',
-          name: 'Épicerie',
-          image:
-              'https://images.pexels.com/photos/3962285/pexels-photo-3962285.jpeg?auto=compress&cs=tinysrgb&w=1200',
-          count: 12,
-          promoCount: 3,
-          tags: ['Promos', 'Populaires'],
-          icon: Icons.storefront_rounded,
-          color: Color(0xFFFFF3E8),
-        ),
-        _CategoryUi(
-          key: 'fruits et legumes',
-          name: 'Fruits & Légumes',
-          image:
-              'https://images.pexels.com/photos/1132047/pexels-photo-1132047.jpeg?auto=compress&cs=tinysrgb&w=1200',
-          count: 8,
-          promoCount: 1,
-          tags: ['Bio', 'Populaires'],
-          icon: Icons.eco_rounded,
-          color: Color(0xFFE8F5EC),
-        ),
-      ];
 
   void _openCategory(_CategoryUi c) {
     HapticFeedback.selectionClick();
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => CategoryProductsScreen(
-          categoryName: localizeProductText(context, c.name),
+          categoryName: c.name,
+          categoryKey: c.key,
         ),
       ),
     );
@@ -595,7 +266,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
                               itemBuilder: (_, i) {
                                 final s = suggestions[i];
                                 return _SuggestionChip(
-                                  text: localizeProductText(context, s),
+                                  text: s,
                                   onTap: () {
                                     _search.text = s;
                                     _search.selection = TextSelection.collapsed(
@@ -880,12 +551,14 @@ class _CategoryCard extends StatelessWidget {
     return InkWell(
       borderRadius: BorderRadius.circular(16),
       onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(AppSpacing.sm),
-        decoration: AppSurface.card(radius: AppRadius.lg, borderAlpha: 0.85),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        child: Container(
+          padding: const EdgeInsets.all(AppSpacing.sm),
+          decoration: AppSurface.card(radius: AppRadius.lg, borderAlpha: 0.85),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
             Row(
               children: [
                 Container(
@@ -918,74 +591,85 @@ class _CategoryCard extends StatelessWidget {
                   ),
               ],
             ),
-            const SizedBox(height: 8),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(12),
-              child: Image.network(
-                c.image,
+              const SizedBox(height: 8),
+              Container(
                 height: 88,
                 width: double.infinity,
-                fit: BoxFit.cover,
-                filterQuality: FilterQuality.medium,
-                gaplessPlayback: true,
-                errorBuilder: (_, __, ___) => Container(
-                  height: 88,
-                  color: AppColors.soft,
-                  alignment: Alignment.center,
-                  child: Icon(c.icon, color: AppColors.bordeaux),
-                ),
-              ),
-            ),
-            const SizedBox(height: 10),
-            Text(
-              localizeProductText(context, c.name),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w700,
-                color: AppColors.text,
-                height: 1.2,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              t.tr('categories_products_count', params: {'count': '${c.count}'}),
-              style: const TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: AppColors.muted,
-              ),
-            ),
-            const Spacer(),
-            Row(
-              children: [
-                Text(
-                  t.tr('categories_view_products'),
-                  style: const TextStyle(
-                    color: AppColors.bordeaux,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: AppColors.border.withValues(alpha: 0.75),
                   ),
                 ),
-                const Spacer(),
-                Container(
-                  height: 24,
-                  width: 24,
-                  decoration: BoxDecoration(
-                    color: AppColors.soft,
-                    borderRadius: BorderRadius.circular(999),
-                    border: Border.all(color: AppColors.border.withValues(alpha: 0.75)),
-                  ),
-                  child: const Icon(
-                    Icons.arrow_forward_rounded,
-                    size: 14,
-                    color: AppColors.bordeaux,
+                clipBehavior: Clip.antiAlias,
+                child: Padding(
+                  padding: const EdgeInsets.all(6),
+                  child: Image.network(
+                    c.image,
+                    width: double.infinity,
+                    height: double.infinity,
+                    fit: BoxFit.contain,
+                    alignment: Alignment.center,
+                    filterQuality: FilterQuality.medium,
+                    gaplessPlayback: true,
+                    errorBuilder: (_, __, ___) => Center(
+                      child: Icon(c.icon, color: AppColors.bordeaux),
+                    ),
                   ),
                 ),
-              ],
-            ),
-          ],
+              ),
+              const SizedBox(height: 10),
+              Text(
+                c.name,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.text,
+                  height: 1.2,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                t.tr('categories_products_count', params: {'count': '${c.count}'}),
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.muted,
+                ),
+              ),
+              const Spacer(),
+              Row(
+                children: [
+                  Text(
+                    t.tr('categories_view_products'),
+                    style: const TextStyle(
+                      color: AppColors.bordeaux,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const Spacer(),
+                  Container(
+                    height: 24,
+                    width: 24,
+                    decoration: BoxDecoration(
+                      color: AppColors.soft,
+                      borderRadius: BorderRadius.circular(999),
+                      border: Border.all(color: AppColors.border.withValues(alpha: 0.75)),
+                    ),
+                    child: const Icon(
+                      Icons.arrow_forward_rounded,
+                      size: 14,
+                      color: AppColors.bordeaux,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -1077,57 +761,6 @@ class _CategoriesError extends StatelessWidget {
           ),
         ),
       ],
-    );
-  }
-}
-
-class _KpiCard extends StatelessWidget {
-  final String title;
-  final String value;
-  final IconData icon;
-  const _KpiCard(
-      {required this.title, required this.value, required this.icon});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.sm),
-      decoration: AppSurface.card(radius: AppRadius.lg, borderAlpha: 0.75),
-      child: Row(
-        children: [
-          Container(
-            height: 32,
-            width: 32,
-            decoration: BoxDecoration(
-              color: AppColors.soft,
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(icon, size: 18, color: AppColors.bordeaux),
-          ),
-          const SizedBox(width: 10),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                value,
-                style: const TextStyle(
-                  color: AppColors.text,
-                  fontWeight: FontWeight.w800,
-                  fontSize: 15,
-                ),
-              ),
-              Text(
-                title,
-                style: const TextStyle(
-                  color: AppColors.muted,
-                  fontWeight: FontWeight.w700,
-                  fontSize: 12,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
     );
   }
 }
@@ -1286,44 +919,4 @@ String _normalize(String input) {
       .replaceAll(RegExp(r'[^a-z0-9 ]'), ' ')
       .replaceAll(RegExp(r'\s+'), ' ')
       .trim();
-}
-
-String _capitalizeWords(String input) {
-  return input
-      .split(' ')
-      .where((e) => e.isNotEmpty)
-      .map((w) => w[0].toUpperCase() + w.substring(1))
-      .join(' ');
-}
-
-int _levenshtein(String a, String b) {
-  if (a == b) return 0;
-  if (a.isEmpty) return b.length;
-  if (b.isEmpty) return a.length;
-
-  final prev = List<int>.generate(b.length + 1, (i) => i);
-  final cur = List<int>.filled(b.length + 1, 0);
-
-  for (var i = 1; i <= a.length; i++) {
-    cur[0] = i;
-    for (var j = 1; j <= b.length; j++) {
-      final cost = a.codeUnitAt(i - 1) == b.codeUnitAt(j - 1) ? 0 : 1;
-      cur[j] = _min3(
-        cur[j - 1] + 1,
-        prev[j] + 1,
-        prev[j - 1] + cost,
-      );
-    }
-    for (var j = 0; j <= b.length; j++) {
-      prev[j] = cur[j];
-    }
-  }
-  return prev[b.length];
-}
-
-int _min3(int a, int b, int c) {
-  var m = a;
-  if (b < m) m = b;
-  if (c < m) m = c;
-  return m;
 }

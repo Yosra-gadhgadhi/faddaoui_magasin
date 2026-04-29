@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:elfaddoui_app/core/l10n/tr3.dart';
 import 'package:elfaddoui_app/core/theme/app_colors.dart';
+import 'package:elfaddoui_app/core/theme/app_spacing.dart';
 
 class LoyaltyGiftsScreen extends StatelessWidget {
   const LoyaltyGiftsScreen({super.key});
@@ -32,9 +33,10 @@ class LoyaltyGiftsScreen extends StatelessWidget {
     ];
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: Theme.of(context).colorScheme.surface,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        toolbarHeight: 78,
+        backgroundColor: Theme.of(context).colorScheme.surface,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         centerTitle: true,
@@ -106,7 +108,7 @@ class LoyaltyGiftsScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 8),
                 SizedBox(
-                  height: 36,
+                  height: AppSize.buttonHeight,
                   width: double.infinity,
                   child: ElevatedButton(
                     onPressed: g.unlocked
@@ -133,7 +135,7 @@ class LoyaltyGiftsScreen extends StatelessWidget {
                       foregroundColor: Colors.white,
                       elevation: 0,
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(11),
+                        borderRadius: BorderRadius.circular(AppRadius.md),
                       ),
                     ),
                     child: Text(

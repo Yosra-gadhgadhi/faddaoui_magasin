@@ -1,6 +1,7 @@
 import 'package:elfaddoui_app/features/checkout/domain/entities/heckout_data.dart';
 import 'package:elfaddoui_app/features/checkout/domain/widgets/checkout_widgets.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:elfaddoui_app/core/theme/app_colors.dart';
 import 'package:elfaddoui_app/core/l10n/tr3.dart';
 
@@ -15,6 +16,7 @@ class CheckoutStep1Personal extends StatefulWidget {
 }
 
 class _CheckoutStep1PersonalState extends State<CheckoutStep1Personal> {
+  static const _tnDialCode = '+216';
   final _formKey = GlobalKey<FormState>();
 
   final _name = TextEditingController();
@@ -41,10 +43,38 @@ class _CheckoutStep1PersonalState extends State<CheckoutStep1Personal> {
       return tr3(context, fr: "Téléphone obligatoire", en: "Phone required", ar: "رقم الهاتف إجباري");
     }
     final digits = v.replaceAll(RegExp(r'\D'), '');
-    if (digits.length < 8) {
+    if (digits.length != 8) {
       return tr3(context, fr: "Numéro invalide", en: "Invalid number", ar: "رقم غير صالح");
     }
     return null;
+  }
+
+  String _formatLocalPhone(String input) {
+    final digits = input.replaceAll(RegExp(r'\D'), '');
+    if (digits.isEmpty) return '';
+    final clipped = digits.length > 8 ? digits.substring(0, 8) : digits;
+    if (clipped.length <= 2) return clipped;
+    if (clipped.length <= 5) {
+      return '${clipped.substring(0, 2)} ${clipped.substring(2)}';
+    }
+    return '${clipped.substring(0, 2)} ${clipped.substring(2, 5)} ${clipped.substring(5)}';
+  }
+
+  void _onPhoneChanged(String value) {
+    final formatted = _formatLocalPhone(value);
+    if (formatted == value) return;
+    _phone.value = TextEditingValue(
+      text: formatted,
+      selection: TextSelection.collapsed(offset: formatted.length),
+    );
+  }
+
+  String _toApiPhone(String input) {
+    final digits = input.replaceAll(RegExp(r'\D'), '');
+    if (digits.isEmpty) return '';
+    final clipped = digits.length > 8 ? digits.substring(0, 8) : digits;
+    if (clipped.length < 8) return '$_tnDialCode $clipped';
+    return '$_tnDialCode ${clipped.substring(0, 2)} ${clipped.substring(2, 5)} ${clipped.substring(5)}';
   }
 
   void _next() {
@@ -52,7 +82,7 @@ class _CheckoutStep1PersonalState extends State<CheckoutStep1Personal> {
 
     final data = CheckoutData(
       fullName: _name.text.trim(),
-      phone: _phone.text.trim(),
+      phone: _toApiPhone(_phone.text.trim()),
       email: _email.text.trim().isEmpty ? null : _email.text.trim(),
       note: _note.text.trim().isEmpty ? null : _note.text.trim(),
     );
@@ -74,9 +104,10 @@ class _CheckoutStep1PersonalState extends State<CheckoutStep1Personal> {
     final border = AppColors.bordeaux.withValues(alpha: 0.18);
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: Theme.of(context).colorScheme.surface,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        toolbarHeight: 78,
+        backgroundColor: Theme.of(context).colorScheme.surface,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         centerTitle: true,
@@ -185,10 +216,16 @@ class _CheckoutStep1PersonalState extends State<CheckoutStep1Personal> {
                   ),
                   CheckoutField(
                     label: tr3(context, fr: "Téléphone *", en: "Phone *", ar: "الهاتف *"),
-                    hint: tr3(context, fr: "Numéro de téléphone", en: "Phone number", ar: "رقم الهاتف"),
+                    hint: tr3(context, fr: "XX XXX XXX", en: "XX XXX XXX", ar: "XX XXX XXX"),
                     controller: _phone,
                     keyboardType: TextInputType.phone,
                     validator: _phoneValidator,
+                    onChanged: _onPhoneChanged,
+                    prefixText: '$_tnDialCode ',
+                    inputFormatters: [
+                      FilteringTextInputFormatter.allow(RegExp(r'[0-9\s]')),
+                      LengthLimitingTextInputFormatter(10),
+                    ],
                   ),
                   CheckoutField(
                     label: tr3(context, fr: "Email (optionnel)", en: "Email (optional)", ar: "البريد الإلكتروني (اختياري)"),

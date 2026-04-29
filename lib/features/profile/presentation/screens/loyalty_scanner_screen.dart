@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:elfaddoui_app/core/l10n/tr3.dart';
 import 'package:elfaddoui_app/core/theme/app_colors.dart';
+import 'package:elfaddoui_app/core/theme/app_spacing.dart';
 
 class LoyaltyScannerScreen extends StatefulWidget {
   const LoyaltyScannerScreen({super.key});
@@ -34,6 +35,7 @@ class _LoyaltyScannerScreenState extends State<LoyaltyScannerScreen>
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
+        toolbarHeight: 78,
         backgroundColor: Colors.black,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
@@ -125,7 +127,7 @@ class _LoyaltyScannerScreenState extends State<LoyaltyScannerScreen>
             right: 24,
             bottom: 64,
             child: SizedBox(
-              height: 50,
+              height: AppSize.buttonHeight,
               child: ElevatedButton(
                 onPressed: () {
                   ScaffoldMessenger.of(context).showSnackBar(
@@ -147,7 +149,7 @@ class _LoyaltyScannerScreenState extends State<LoyaltyScannerScreen>
                   foregroundColor: Colors.white,
                   elevation: 0,
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
+                    borderRadius: BorderRadius.circular(AppRadius.md),
                   ),
                 ),
                 child: Text(

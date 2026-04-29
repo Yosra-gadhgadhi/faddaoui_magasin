@@ -1,8 +1,13 @@
 import 'package:elfaddoui_app/features/checkout/domain/entities/heckout_data.dart';
 import 'package:elfaddoui_app/features/checkout/domain/widgets/checkout_widgets.dart';
+import 'package:elfaddoui_app/core/network/api_constants.dart';
+import 'package:elfaddoui_app/core/storage/token_storage.dart';
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:elfaddoui_app/core/theme/app_colors.dart';
 import 'package:elfaddoui_app/core/l10n/tr3.dart';
+import 'package:elfaddoui_app/app/routes.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import 'order_success_screen.dart';
 
@@ -22,8 +27,170 @@ class CheckoutStep3Payment extends StatefulWidget {
 
 class _CheckoutStep3PaymentState extends State<CheckoutStep3Payment> {
   bool accept = false;
+  bool _submitting = false;
+  final _tokenStorage = TokenStorage();
+  final Dio _dio = Dio(
+    BaseOptions(
+      baseUrl: ApiConstants.baseUrl,
+      connectTimeout: const Duration(seconds: 15),
+      receiveTimeout: const Duration(seconds: 15),
+      headers: {"Content-Type": "application/json"},
+      validateStatus: (code) => code != null && code < 500,
+    ),
+  );
 
-  void _confirm() {
+  Future<Options> _authOptions() async {
+    final token = await _tokenStorage.readToken();
+    return Options(
+      headers: {
+        "Content-Type": "application/json",
+        if (token != null && token.isNotEmpty) "Authorization": "Bearer $token",
+      },
+    );
+  }
+
+  Map<String, dynamic> _buildOrderPayload(CheckoutData data) {
+    final isOnline = data.paymentMethod == "online";
+    return {
+      "customer": {
+        "fullName": data.fullName,
+        "phone": data.phone,
+        "email": data.email,
+        "note": data.note,
+      },
+      "address": {
+        "city": data.city,
+        "area": data.area,
+        "street": data.street,
+        "extra": data.extra,
+        "postalCode": data.postalCode,
+        "hint": data.addressHint,
+        "placeType": data.placeType,
+      },
+      "payment": {
+        // Keep backend compatibility (CASH/CARD) and pass channel as extra.
+        "method": isOnline ? "card" : data.paymentMethod,
+        if (isOnline) "channel": "online",
+      },
+      "delivery": {
+        "slot": data.deliverySlot,
+        "scheduledTime": data.scheduledTime,
+      },
+      "total": widget.total,
+    };
+  }
+
+  Future<(bool, String?)> _startOnlinePayment(CheckoutData data) async {
+    final options = await _authOptions();
+    final payload = {
+      "amount": widget.total,
+      "currency": "TND",
+      "orderPreview": _buildOrderPayload(data),
+      "providerHint": "auto",
+    };
+    const candidates = [
+      '/api/payments/create-intent',
+      '/api/payments/create',
+      '/api/orders/payment-intent',
+    ];
+
+    for (final path in candidates) {
+      try {
+        final r = await _dio.post(path, data: payload, options: options);
+        final status = r.statusCode ?? 500;
+        if (status == 404 || status == 405) {
+          continue;
+        }
+        if (status >= 400 || r.data is! Map) {
+          return (false, _extractBackendMessage(r.data) ?? "Paiement en ligne indisponible.");
+        }
+
+        final m = Map<String, dynamic>.from(r.data as Map);
+        final paymentUrl = (m["checkoutUrl"] ?? m["paymentUrl"] ?? m["redirectUrl"] ?? "").toString().trim();
+        if (paymentUrl.isEmpty) {
+          return (false, "Lien de paiement manquant.");
+        }
+
+        final uri = Uri.tryParse(paymentUrl);
+        if (uri == null || !await canLaunchUrl(uri)) {
+          return (false, "Impossible d'ouvrir la page de paiement.");
+        }
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+        return (true, null);
+      } on DioException catch (e) {
+        final status = e.response?.statusCode ?? 500;
+        if (status == 404 || status == 405) {
+          continue;
+        }
+        return (false, _extractBackendMessage(e.response?.data) ?? "Paiement en ligne indisponible.");
+      } catch (_) {
+        return (false, "Erreur réseau pendant l'ouverture du paiement.");
+      }
+    }
+    return (false, "Backend paiement non branché.");
+  }
+
+  String? _extractOrderId(dynamic body) {
+    if (body is! Map) return null;
+    final map = Map<String, dynamic>.from(body);
+    final direct = map["orderId"] ?? map["id"] ?? map["reference"] ?? map["code"];
+    if (direct != null && '$direct'.trim().isNotEmpty) {
+      return '$direct';
+    }
+    final nested = map["order"];
+    if (nested is Map) {
+      final n = Map<String, dynamic>.from(nested);
+      final nestedId = n["orderId"] ?? n["id"] ?? n["reference"] ?? n["code"];
+      if (nestedId != null && '$nestedId'.trim().isNotEmpty) {
+        return '$nestedId';
+      }
+    }
+    return null;
+  }
+
+  String? _extractBackendMessage(dynamic body) {
+    if (body is Map) {
+      final map = Map<String, dynamic>.from(body);
+      final message = map["message"] ?? map["error"] ?? map["detail"];
+      if (message != null && '$message'.trim().isNotEmpty) {
+        return '$message';
+      }
+    }
+    return null;
+  }
+
+  Future<(int, String?, String?)> _createOrderOnBackend(CheckoutData data) async {
+    final payload = _buildOrderPayload(data);
+    final options = await _authOptions();
+    final candidates = const ['/api/orders', '/api/orders/checkout', '/api/checkout'];
+
+    var lastStatus = 500;
+    for (final path in candidates) {
+      try {
+        final r = await _dio.post(path, data: payload, options: options);
+        final status = r.statusCode ?? 500;
+        lastStatus = status;
+        if (status == 404 || status == 405) {
+          continue;
+        }
+        if (status >= 200 && status < 300) {
+          return (status, _extractOrderId(r.data), null);
+        }
+        return (status, null, _extractBackendMessage(r.data));
+      } on DioException catch (e) {
+        final status = e.response?.statusCode ?? 500;
+        lastStatus = status;
+        if (status == 404 || status == 405) {
+          continue;
+        }
+        return (status, null, _extractBackendMessage(e.response?.data));
+      }
+    }
+    return (lastStatus, null, null);
+  }
+
+  Future<void> _confirm() async {
+    if (_submitting) return;
     if (!accept) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -46,16 +213,88 @@ class _CheckoutStep3PaymentState extends State<CheckoutStep3Payment> {
       return;
     }
 
-    final orderId =
-        "ELF-${DateTime.now().millisecondsSinceEpoch.toString().substring(6)}";
+    setState(() => _submitting = true);
+    try {
+      if (widget.data.paymentMethod == "online") {
+        final (ok, message) = await _startOnlinePayment(widget.data);
+        if (!mounted) return;
+        if (!ok) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              behavior: SnackBarBehavior.floating,
+              content: Text(message ?? "Paiement en ligne indisponible."),
+            ),
+          );
+          return;
+        }
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            behavior: SnackBarBehavior.floating,
+            content: Text("Paiement ouvert. Revenez ensuite pour confirmer la commande."),
+          ),
+        );
+      }
 
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(
-        builder: (_) =>
-            OrderSuccessScreen(orderId: orderId, total: widget.total),
-      ),
-    );
+      final (status, backendOrderId, backendMessage) =
+          await _createOrderOnBackend(widget.data);
+
+      if (!mounted) return;
+      if (status == 401 || status == 403) {
+        await _tokenStorage.clear();
+        if (!mounted) return;
+        Navigator.pushNamedAndRemoveUntil(context, AppRoutes.signIn, (_) => false);
+        return;
+      }
+      if (status < 200 || status >= 300) {
+        final failMessage = (backendMessage != null && backendMessage.trim().isNotEmpty)
+            ? backendMessage
+            : tr3(
+                context,
+                fr: "Impossible de confirmer la commande.",
+                en: "Unable to confirm order.",
+                ar: "تعذر تأكيد الطلب.",
+              );
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            behavior: SnackBarBehavior.floating,
+            backgroundColor: Colors.white,
+            elevation: 0,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(14),
+              side: const BorderSide(color: AppColors.border),
+            ),
+            content: Text(
+              failMessage,
+              style: const TextStyle(
+                color: AppColors.text,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        );
+        return;
+      }
+
+      final orderId = backendOrderId ??
+          "ELF-${DateTime.now().millisecondsSinceEpoch.toString().substring(6)}";
+
+      await _tokenStorage.saveLastOrderId(orderId);
+
+      // Best effort local cart clear after successful checkout.
+      await _dio.delete('/api/cart', options: await _authOptions());
+
+      if (!mounted) return;
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => OrderSuccessScreen(orderId: orderId, total: widget.total),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _submitting = false);
+      }
+    }
   }
 
   Future<void> _pickTime(CheckoutData data) async {
@@ -72,9 +311,10 @@ class _CheckoutStep3PaymentState extends State<CheckoutStep3Payment> {
     final data = widget.data;
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: Theme.of(context).colorScheme.surface,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        toolbarHeight: 78,
+        backgroundColor: Theme.of(context).colorScheme.surface,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         centerTitle: true,
@@ -88,10 +328,12 @@ class _CheckoutStep3PaymentState extends State<CheckoutStep3Payment> {
         ),
       ),
       bottomNavigationBar: CheckoutBottomBar(
-        primaryText: tr3(context, fr: "Confirmer", en: "Confirm", ar: "تأكيد"),
+        primaryText: _submitting
+            ? tr3(context, fr: "Confirmation...", en: "Confirming...", ar: "جارٍ التأكيد...")
+            : tr3(context, fr: "Confirmer", en: "Confirm", ar: "تأكيد"),
         onPrimary: _confirm,
         secondaryText: tr3(context, fr: "Retour", en: "Back", ar: "رجوع"),
-        onSecondary: () => Navigator.pop(context),
+        onSecondary: _submitting ? null : () => Navigator.pop(context),
       ),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 10, 16, 18),
@@ -137,6 +379,13 @@ class _CheckoutStep3PaymentState extends State<CheckoutStep3Payment> {
                   subtitle: tr3(context, fr: "TPE à la livraison (optionnel)", en: "POS on delivery (optional)", ar: "جهاز دفع عند التوصيل (اختياري)"),
                   selected: data.paymentMethod == "card",
                   onTap: () => setState(() => data.paymentMethod = "card"),
+                ),
+                const SizedBox(height: 10),
+                _RadioRow(
+                  title: tr3(context, fr: "Paiement en ligne", en: "Online payment", ar: "دفع إلكتروني"),
+                  subtitle: tr3(context, fr: "Carte / Wallet sécurisé", en: "Secure card / wallet", ar: "بطاقة / محفظة آمنة"),
+                  selected: data.paymentMethod == "online",
+                  onTap: () => setState(() => data.paymentMethod = "online"),
                 ),
               ],
             ),

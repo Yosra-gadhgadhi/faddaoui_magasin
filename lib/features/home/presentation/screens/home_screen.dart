@@ -7,6 +7,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'package:elfaddoui_app/core/l10n/app_localizations.dart';
 import 'package:elfaddoui_app/core/l10n/product_text_localizer.dart';
+import 'package:elfaddoui_app/core/network/api_constants.dart';
 import 'package:elfaddoui_app/core/theme/app_colors.dart';
 import 'package:elfaddoui_app/core/theme/app_spacing.dart';
 import 'package:elfaddoui_app/core/theme/app_text_styles.dart';
@@ -17,6 +18,7 @@ import 'package:elfaddoui_app/features/cart/presentation/cubit/cart_cubit.dart';
 import 'package:elfaddoui_app/features/favorites/presentation/cubit/favorites_cubit.dart';
 import 'package:elfaddoui_app/features/catalog/presentation/screens/search_screen.dart';
 import 'package:elfaddoui_app/features/notifications/presentation/screens/notifications_screen.dart';
+import 'package:elfaddoui_app/features/notifications/presentation/cubit/notifications_cubit.dart';
 import 'package:elfaddoui_app/features/catalog/presentation/screens/categories_screen.dart';
 import 'package:elfaddoui_app/features/catalog/presentation/screens/category_products_screen.dart'
     show CategoryProductsScreen;
@@ -120,6 +122,8 @@ class _HomeScreenState extends State<HomeScreen> {
   ];
 
   late final HomeCubit _cubit;
+  final AiHomeService _homeApi = AiHomeService();
+  List<_Cat> _dynamicHomeCategories = const [];
 
   final ScrollController _scroll = ScrollController();
   final GlobalKey _dealsKey = GlobalKey();
@@ -183,6 +187,7 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     _cubit = HomeCubit(AiHomeService())..init();
+    _loadHomeCategories();
     _searchDebouncer = _Debouncer(ms: 150);
     _flashEndsAt = DateTime.now().add(const Duration(hours: 2, minutes: 14));
     _flashTimer = Timer.periodic(const Duration(seconds: 1), (_) {
@@ -194,6 +199,28 @@ class _HomeScreenState extends State<HomeScreen> {
       setState(() {});
     });
     _scroll.addListener(_onScroll);
+  }
+
+  Future<void> _loadHomeCategories() async {
+    try {
+      final categories = await _homeApi.getPublicCategories();
+      if (!mounted) return;
+      final list = categories.map((c) {
+        final title = (c['name'] ?? '').toString().trim();
+        final key = (c['key'] ?? '').toString().trim();
+        final imageUrl = (c['imageUrl'] ?? '').toString().trim();
+        return _Cat(
+          title.isEmpty ? key : title,
+          Icons.shopping_bag_rounded,
+          key: key,
+          imageUrl: imageUrl.isEmpty ? null : imageUrl,
+        );
+      }).where((e) => e.title.trim().isNotEmpty).take(6).toList(growable: false);
+      setState(() => _dynamicHomeCategories = list);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _dynamicHomeCategories = const []);
+    }
   }
 
   @override
@@ -214,6 +241,19 @@ class _HomeScreenState extends State<HomeScreen> {
     final m = (safe.inMinutes % 60).toString().padLeft(2, '0');
     final s = (safe.inSeconds % 60).toString().padLeft(2, '0');
     return "$h:$m:$s";
+  }
+
+  String _normalize(String input) {
+    return input
+        .toLowerCase()
+        .replaceAll('é', 'e')
+        .replaceAll('è', 'e')
+        .replaceAll('ê', 'e')
+        .replaceAll('à', 'a')
+        .replaceAll('&', ' ')
+        .replaceAll(RegExp(r'[^a-z0-9 ]'), ' ')
+        .replaceAll(RegExp(r'\\s+'), ' ')
+        .trim();
   }
 
   void _openProduct(BuildContext context, Product p) {
@@ -247,11 +287,17 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  void _openCategoryProducts(String categoryName) {
+  void _openCategoryProducts(String categoryName, {String? categoryKey}) {
     HapticFeedback.lightImpact();
+    final key = (categoryKey != null && categoryKey.trim().isNotEmpty)
+        ? categoryKey.trim()
+        : _normalize(categoryName).replaceAll(' ', '-');
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => CategoryProductsScreen(categoryName: categoryName),
+        builder: (_) => CategoryProductsScreen(
+          categoryName: categoryName,
+          categoryKey: key,
+        ),
       ),
     );
   }
@@ -323,7 +369,14 @@ class _HomeScreenState extends State<HomeScreen> {
     _lastPrecacheSignature = signature;
     final top = list.take(8);
     for (final p in top) {
-      await precacheImage(NetworkImage(p.image), context);
+      if (!mounted) return;
+      final imageUrl = ApiConstants.resolveAssetUrl(p.image);
+      final uri = Uri.tryParse(imageUrl);
+      final isValidNetworkImage = uri != null &&
+          (uri.scheme == 'http' || uri.scheme == 'https') &&
+          uri.host.isNotEmpty;
+      if (!isValidNetworkImage) continue;
+      await precacheImage(NetworkImage(imageUrl), context);
     }
   }
 
@@ -819,7 +872,9 @@ class _HomeScreenState extends State<HomeScreen> {
                   const SliverToBoxAdapter(child: SizedBox(height: 12)),
                   SliverToBoxAdapter(
                     child: _CategoryRowFine(
-                      onCategoryTap: _openCategoryProducts,
+                      items: _dynamicHomeCategories,
+                      onCategoryTap: (c) =>
+                          _openCategoryProducts(c.title, categoryKey: c.key),
                     ),
                   ),
                   if (s.recent.isNotEmpty)
@@ -2462,8 +2517,12 @@ class _FadeInNetworkImage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final normalizedUrl = url.trim();
-    if (normalizedUrl.isEmpty) {
+    final normalizedUrl = ApiConstants.resolveAssetUrl(url);
+    final uri = Uri.tryParse(normalizedUrl);
+    final isValidNetworkImage = uri != null &&
+        (uri.scheme == 'http' || uri.scheme == 'https') &&
+        uri.host.isNotEmpty;
+    if (normalizedUrl.isEmpty || !isValidNetworkImage) {
       return _ImageFallback(
         height: height,
         width: width,
@@ -2676,24 +2735,21 @@ class _ShopProductCardFineState extends State<_ShopProductCardFine> {
                         top: 10,
                         right: 10,
                         child: InkWell(
-                          onTap: () {
+                          onTap: () async {
                             HapticFeedback.selectionClick();
-                            final wasFav = isFav;
-                            context.read<FavoritesCubit>().toggle(
-                                  FavoriteItem(
-                                    id: p.id,
-                                    name: p.name,
-                                    image: p.image,
-                                    price: p.price,
-                                  ),
-                                );
+                            final nowFav = await context.read<FavoritesCubit>().toggle(
+                              FavoriteItem(
+                                id: p.id,
+                                name: p.name,
+                                image: p.image,
+                                price: p.price,
+                              ),
+                            );
                             AppSnackBar.show(
                               context,
-                              wasFav
-                                  ? AppLocalizations.of(context)
-                                      .tr('favorites_removed')
-                                  : AppLocalizations.of(context)
-                                      .tr('favorites_added'),
+                              nowFav
+                                  ? AppLocalizations.of(context).tr('favorites_added')
+                                  : AppLocalizations.of(context).tr('favorites_removed'),
                               durationMs: 750,
                             );
                           },
@@ -2970,7 +3026,7 @@ class _HomeSliverAppBar extends StatelessWidget {
       backgroundColor: Theme.of(context).colorScheme.surface,
       surfaceTintColor: Colors.transparent,
       elevation: 0,
-      toolbarHeight: 72,
+      toolbarHeight: 78,
       titleSpacing: 16,
       title: Row(
         children: [
@@ -3022,14 +3078,20 @@ class _HomeSliverAppBar extends StatelessWidget {
         ],
       ),
       actions: [
-        _TopIconBtnFine(
-          icon: Icons.notifications_rounded,
-          semanticLabel: AppLocalizations.of(context).tr('notif_title'),
-          badgeCount: 3,
-          onTap: () {
-            HapticFeedback.lightImpact();
-            Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const NotificationsScreen()),
+        BlocBuilder<NotificationsCubit, NotificationsState>(
+          builder: (context, notifState) {
+            return _TopIconBtnFine(
+              icon: Icons.notifications_rounded,
+              semanticLabel: AppLocalizations.of(context).tr('notif_title'),
+              badgeCount: notifState.unreadCount,
+              onTap: () async {
+                HapticFeedback.lightImpact();
+                await Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const NotificationsScreen()),
+                );
+                if (!context.mounted) return;
+                context.read<NotificationsCubit>().refreshUnreadCount();
+              },
             );
           },
         ),
@@ -3477,32 +3539,20 @@ class _TrustPill extends StatelessWidget {
 /* ===================== CATEGORY ROW ===================== */
 
 class _CategoryRowFine extends StatelessWidget {
-  final ValueChanged<String> onCategoryTap;
-  const _CategoryRowFine({required this.onCategoryTap});
+  final List<_Cat> items;
+  final ValueChanged<_Cat> onCategoryTap;
+  const _CategoryRowFine({required this.items, required this.onCategoryTap});
 
   @override
   Widget build(BuildContext context) {
-    final items = [
-      _Cat(_htr(context, fr: "Épicerie", en: "Grocery", ar: "بقالة"),
-          Icons.local_grocery_store_rounded),
-      _Cat(_htr(context, fr: "Boissons", en: "Drinks", ar: "مشروبات"),
-          Icons.local_drink_rounded),
-      _Cat(_htr(context, fr: "Snacks", en: "Snacks", ar: "سناكس"),
-          Icons.fastfood_rounded),
-      _Cat(_htr(context, fr: "Maison", en: "Home", ar: "المنزل"),
-          Icons.chair_rounded),
-      _Cat(_htr(context, fr: "Hygiène", en: "Hygiene", ar: "نظافة"),
-          Icons.spa_rounded),
-      _Cat(_htr(context, fr: "Fruits", en: "Fruits", ar: "فواكه"),
-          Icons.apple_rounded),
-    ];
+    if (items.isEmpty) return const SizedBox.shrink();
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: LayoutBuilder(
         builder: (context, c) {
-          const cols = 3;
-          const gap = 10.0;
+          final cols = c.maxWidth >= 430 ? 3 : 2;
+          const gap = 12.0;
           final w = (c.maxWidth - (gap * (cols - 1))) / cols;
           return Wrap(
             spacing: gap,
@@ -3514,7 +3564,8 @@ class _CategoryRowFine extends StatelessWidget {
                   child: _CategoryPillFine(
                     title: it.title,
                     icon: it.icon,
-                    onTap: () => onCategoryTap(it.title),
+                    imageUrl: it.imageUrl,
+                    onTap: () => onCategoryTap(it),
                   ),
                 ),
             ],
@@ -3528,49 +3579,70 @@ class _CategoryRowFine extends StatelessWidget {
 class _Cat {
   final String title;
   final IconData icon;
-  const _Cat(this.title, this.icon);
+  final String? key;
+  final String? imageUrl;
+  const _Cat(this.title, this.icon, {this.key, this.imageUrl});
 }
 
 class _CategoryPillFine extends StatelessWidget {
   final String title;
   final IconData icon;
+  final String? imageUrl;
   final VoidCallback onTap;
   const _CategoryPillFine({
     required this.title,
     required this.icon,
+    this.imageUrl,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
     return InkWell(
-      borderRadius: BorderRadius.circular(AppRadius.md),
+      borderRadius: BorderRadius.circular(AppRadius.lg),
       onTap: onTap,
       child: Container(
-        height: 84,
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-        decoration: AppSurface.card(radius: AppRadius.md, borderAlpha: 0.8),
+        height: 92,
+        padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(AppRadius.lg),
+          border: Border.all(
+            color: AppColors.border.withValues(alpha: 0.85),
+          ),
+        ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Container(
-              height: 32,
-              width: 32,
+              height: 30,
+              width: 30,
               decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.88),
+                color: AppColors.bordeaux.withValues(alpha: 0.10),
                 borderRadius: BorderRadius.circular(9),
               ),
-              child: Icon(icon, size: 18, color: AppColors.bordeaux),
+              child: Icon(
+                icon,
+                size: 16,
+                color: AppColors.bordeaux,
+              ),
             ),
-            const SizedBox(height: 6),
-            Text(title,
+            const SizedBox(height: 7),
+            SizedBox(
+              height: 34,
+              child: Text(
+                title,
                 textAlign: TextAlign.center,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
-                    fontSize: 11.5,
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.text)),
+                  fontSize: 12,
+                  height: 1.2,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.text,
+                ),
+              ),
+            ),
           ],
         ),
       ),

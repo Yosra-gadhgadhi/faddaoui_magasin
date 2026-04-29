@@ -1,9 +1,11 @@
-import 'dart:math';
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:elfaddoui_app/core/l10n/tr3.dart';
-import 'package:elfaddoui_app/core/l10n/product_text_localizer.dart';
+import 'package:elfaddoui_app/core/network/api_constants.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:elfaddoui_app/core/theme/app_colors.dart';
 import 'package:elfaddoui_app/core/theme/app_spacing.dart';
@@ -13,12 +15,13 @@ import 'package:elfaddoui_app/core/widgets/app_snackbar.dart';
 import 'package:elfaddoui_app/features/catalog/presentation/screens/product_details_screen.dart';
 import 'package:elfaddoui_app/features/cart/presentation/cubit/cart_cubit.dart';
 import 'package:elfaddoui_app/features/cart/presentation/screens/cart_screen.dart';
-
 import 'package:elfaddoui_app/features/favorites/presentation/cubit/favorites_cubit.dart';
+import 'package:elfaddoui_app/features/home/services/ai_home_service.dart';
 
 class CategoryProductsScreen extends StatefulWidget {
   final String categoryName;
-  const CategoryProductsScreen({super.key, required this.categoryName});
+  final String? categoryKey;
+  const CategoryProductsScreen({super.key, required this.categoryName, this.categoryKey});
 
   @override
   State<CategoryProductsScreen> createState() => _CategoryProductsScreenState();
@@ -26,6 +29,8 @@ class CategoryProductsScreen extends StatefulWidget {
 
 class _CategoryProductsScreenState extends State<CategoryProductsScreen> with SingleTickerProviderStateMixin {
   final _search = TextEditingController();
+  final AiHomeService _homeService = AiHomeService();
+  Timer? _searchDebounce;
 
   bool _onlyPromo = false;
   bool _onlyBio = false;
@@ -34,10 +39,12 @@ class _CategoryProductsScreenState extends State<CategoryProductsScreen> with Si
   SortOption _sort = SortOption.recommended;
 
   String? _subCat;
-  late final List<String> _subCategories;
-
-  late final List<Product> _all;
+  List<String> _subCategories = [];
+  List<Product> _all = [];
   List<Product> _view = [];
+  int _totalResults = 0;
+  bool _isLoading = false;
+  String? _loadError;
 
   late final AnimationController _barCtrl;
   late final Animation<double> _barAnim;
@@ -51,52 +58,230 @@ class _CategoryProductsScreenState extends State<CategoryProductsScreen> with Si
     );
     _barAnim = CurvedAnimation(parent: _barCtrl, curve: Curves.easeOut);
 
-    _subCategories = _mockSubCategories(widget.categoryName);
-    _all = _mockProducts(widget.categoryName);
+    _subCategories = const [];
+    _all = const [];
 
-    _search.addListener(_apply);
-    _apply();
+    _search.addListener(_onSearchChanged);
+    _restoreFiltersAndLoad();
   }
 
   @override
   void dispose() {
-    _search.removeListener(_apply);
+    _search.removeListener(_onSearchChanged);
+    _searchDebounce?.cancel();
     _search.dispose();
     _barCtrl.dispose();
     super.dispose();
   }
 
-  void _apply() {
-    final q = _search.text.trim().toLowerCase();
-
+  void _applyLocalFilters() {
     final res = _all.where((p) {
-      final matchesSearch = q.isEmpty || p.name.toLowerCase().contains(q);
       final matchesSub = _subCat == null || p.subCategory == _subCat;
-      final matchesPromo = !_onlyPromo || p.isPromo;
-      final matchesBio = !_onlyBio || p.isBio;
-      final matchesPrice = p.price >= _minPrice && p.price <= _maxPrice;
-      return matchesSearch && matchesSub && matchesPromo && matchesBio && matchesPrice;
+      return matchesSub;
     }).toList();
-
-    res.sort((a, b) {
-      switch (_sort) {
-        case SortOption.priceLow:
-          return a.price.compareTo(b.price);
-        case SortOption.priceHigh:
-          return b.price.compareTo(a.price);
-        case SortOption.newest:
-          return b.createdAt.compareTo(a.createdAt);
-        case SortOption.top:
-          return b.score.compareTo(a.score);
-        case SortOption.recommended:
-          final sa = a.score + (a.isPromo ? 10 : 0);
-          final sb = b.score + (b.isPromo ? 10 : 0);
-          return sb.compareTo(sa);
-      }
-    });
 
     if (!mounted) return;
     setState(() => _view = res);
+  }
+
+  void _onSearchChanged() {
+    _scheduleReload();
+  }
+
+  void _scheduleReload({bool immediate = false}) {
+    _searchDebounce?.cancel();
+    if (immediate) {
+      _loadBackendProducts();
+      return;
+    }
+    _searchDebounce = Timer(const Duration(milliseconds: 420), _loadBackendProducts);
+  }
+
+  String _persistKey(String suffix) {
+    final raw = (widget.categoryKey == null || widget.categoryKey!.trim().isEmpty)
+        ? _normalize(widget.categoryName).replaceAll(' ', '-')
+        : widget.categoryKey!.trim().toLowerCase();
+    return 'catalog_filters:$raw:$suffix';
+  }
+
+  Future<void> _restoreFiltersAndLoad() async {
+    final prefs = await SharedPreferences.getInstance();
+    final savedQuery = prefs.getString(_persistKey('query'));
+    if (savedQuery != null) {
+      _search.text = savedQuery;
+    }
+
+    _onlyPromo = prefs.getBool(_persistKey('promoOnly')) ?? false;
+    _onlyBio = prefs.getBool(_persistKey('bioOnly')) ?? false;
+    _minPrice = prefs.getDouble(_persistKey('minPrice')) ?? 0;
+    _maxPrice = prefs.getDouble(_persistKey('maxPrice')) ?? 200;
+    if (_maxPrice < _minPrice) {
+      _minPrice = 0;
+      _maxPrice = 200;
+    }
+    _sort = _sortFromStorage(prefs.getString(_persistKey('sort'))) ?? SortOption.recommended;
+
+    if (!mounted) return;
+    setState(() {});
+    await _loadBackendProducts();
+  }
+
+  Future<void> _persistFilters() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_persistKey('query'), _search.text.trim());
+    await prefs.setBool(_persistKey('promoOnly'), _onlyPromo);
+    await prefs.setBool(_persistKey('bioOnly'), _onlyBio);
+    await prefs.setDouble(_persistKey('minPrice'), _minPrice);
+    await prefs.setDouble(_persistKey('maxPrice'), _maxPrice);
+    await prefs.setString(_persistKey('sort'), _sort.name);
+  }
+
+  Future<void> _loadBackendProducts() async {
+    if (!mounted) return;
+    setState(() {
+      _isLoading = true;
+      _loadError = null;
+    });
+
+    try {
+      final key = (widget.categoryKey == null || widget.categoryKey!.trim().isEmpty)
+          ? _normalize(widget.categoryName).replaceAll(' ', '-')
+          : widget.categoryKey!.trim();
+      Map<String, dynamic> data;
+      try {
+        data = await _homeService.searchCatalogProducts(
+          categoryKey: key,
+          query: _search.text.trim().isEmpty ? null : _search.text.trim(),
+          promoOnly: _onlyPromo,
+          bioOnly: _onlyBio,
+          minPrice: _minPrice,
+          maxPrice: _maxPrice,
+          sort: _sortApiValue(_sort),
+          page: 0,
+          size: 40,
+        );
+      } catch (_) {
+        // Fallback if backend category key changed or is unknown.
+        data = await _homeService.searchCatalogProducts(
+          categoryKey: null,
+          query: _search.text.trim().isEmpty ? null : _search.text.trim(),
+          promoOnly: _onlyPromo,
+          bioOnly: _onlyBio,
+          minPrice: _minPrice,
+          maxPrice: _maxPrice,
+          sort: _sortApiValue(_sort),
+          page: 0,
+          size: 40,
+        );
+      }
+      if (!mounted) return;
+
+      final rawProducts = (data['products'] as List?) ??
+          (data['content'] as List?) ??
+          (data['items'] as List?) ??
+          const [];
+      final source = rawProducts
+          .whereType<Map>()
+          .map((e) => _mapBackendProduct(Map<String, dynamic>.from(e)))
+          .toList(growable: false);
+      final expected = _normalize(widget.categoryName);
+      final filteredByCategory = source.where((p) {
+        final cat = _normalize(p.subCategory);
+        if (cat.isEmpty) return true;
+        if (cat == expected) return true;
+        return cat.contains(expected) || expected.contains(cat);
+      }).toList(growable: false);
+      final effectiveSource = filteredByCategory.isEmpty ? source : filteredByCategory;
+      final subs = effectiveSource.map((e) => e.subCategory).where((e) => e.trim().isNotEmpty).toSet().toList(growable: false);
+      subs.sort();
+      final total = (data['totalResults'] is num) ? (data['totalResults'] as num).toInt() : effectiveSource.length;
+
+      setState(() {
+        _all = effectiveSource;
+        _subCategories = subs;
+        if (_subCat != null && !subs.contains(_subCat)) {
+          _subCat = null;
+        }
+        _totalResults = total;
+        _loadError = null;
+        _isLoading = false;
+      });
+      _applyLocalFilters();
+      await _persistFilters();
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+        _loadError = e.toString();
+      });
+    }
+  }
+
+  String _normalize(String? text) {
+    if (text == null) return '';
+    return text
+        .toLowerCase()
+        .replaceAll('é', 'e')
+        .replaceAll('è', 'e')
+        .replaceAll('ê', 'e')
+        .replaceAll('à', 'a')
+        .replaceAll('ù', 'u')
+        .replaceAll('&', ' ')
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
+  }
+
+  String _sortApiValue(SortOption sort) {
+    switch (sort) {
+      case SortOption.recommended:
+        return 'recommended';
+      case SortOption.top:
+        return 'top';
+      case SortOption.newest:
+        return 'newest';
+      case SortOption.rating:
+        return 'rating';
+      case SortOption.priceLow:
+        return 'priceAsc';
+      case SortOption.priceHigh:
+        return 'priceDesc';
+    }
+  }
+
+  SortOption? _sortFromStorage(String? value) {
+    if (value == null || value.trim().isEmpty) return null;
+    for (final item in SortOption.values) {
+      if (item.name == value.trim()) return item;
+    }
+    return null;
+  }
+
+  Product _mapBackendProduct(Map<String, dynamic> p) {
+    final rating = (p['rating'] is num) ? (p['rating'] as num).toDouble() : 4.5;
+    final discount = p['discountPct'];
+    final score =
+        (((rating * 20).round() + (discount == null ? 0 : discount.round())).clamp(1, 100) as num).toInt();
+    final price = (p['price'] is num) ? (p['price'] as num).toDouble() : (double.tryParse('${p['price']}') ?? 0);
+    final oldPriceVal = p['oldPrice'];
+    final oldPrice = oldPriceVal == null
+        ? null
+        : (oldPriceVal is num ? oldPriceVal.toDouble() : double.tryParse('$oldPriceVal'));
+    final isPromo = (p['isPromo'] == true) || (oldPrice != null && oldPrice > price);
+
+    return Product(
+      id: '${p['id'] ?? ''}',
+      name: '${p['name'] ?? ''}',
+      subCategory: (p['displayCategoryName'] ?? p['categoryName'] ?? widget.categoryName).toString(),
+      image: ApiConstants.resolveAssetUrl((p['imageUrl'] ?? '').toString().trim()),
+      price: price,
+      oldPrice: oldPrice,
+      isPromo: isPromo,
+      isBio: p['isBio'] == true,
+      isNew: p['isNew'] == true,
+      isPopular: p['isPopular'] == true || rating >= 4.2,
+      score: score,
+      createdAt: DateTime.now(),
+    );
   }
 
   int _cartCountFrom(Map<String, CartLine> cart) {
@@ -143,7 +328,7 @@ class _CategoryProductsScreenState extends State<CategoryProductsScreen> with Si
   }
 
   // Favorites toggle
-  void _toggleFav(Product p) {
+  Future<void> _toggleFav(Product p) async {
     HapticFeedback.selectionClick();
 
     final fav = FavoriteItem(
@@ -153,8 +338,7 @@ class _CategoryProductsScreenState extends State<CategoryProductsScreen> with Si
       price: p.price,
     );
 
-    context.read<FavoritesCubit>().toggle(fav);
-    final isFav = context.read<FavoritesCubit>().isFavorite(p.id);
+    final isFav = await context.read<FavoritesCubit>().toggle(fav);
 
     _toastPremium(
       isFav
@@ -187,7 +371,7 @@ class _CategoryProductsScreenState extends State<CategoryProductsScreen> with Si
       _sort = result.sort;
     });
 
-    _apply();
+    _scheduleReload(immediate: true);
   }
 
   void _openSortQuick() {
@@ -199,7 +383,7 @@ class _CategoryProductsScreenState extends State<CategoryProductsScreen> with Si
         onPick: (s) {
           Navigator.pop(context);
           setState(() => _sort = s);
-          _apply();
+          _scheduleReload(immediate: true);
         },
       ),
     );
@@ -234,16 +418,16 @@ class _CategoryProductsScreenState extends State<CategoryProductsScreen> with Si
     }
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: Theme.of(context).colorScheme.surface,
       body: CustomScrollView(
         physics: const BouncingScrollPhysics(),
         slivers: [
           SliverAppBar(
             pinned: true,
-            backgroundColor: Colors.white,
+            backgroundColor: Theme.of(context).colorScheme.surface,
             surfaceTintColor: Colors.transparent,
             elevation: 0,
-            toolbarHeight: 70,
+            toolbarHeight: 78,
             centerTitle: true,
             leadingWidth: 52,
             systemOverlayStyle: SystemUiOverlayStyle.dark,
@@ -286,7 +470,6 @@ class _CategoryProductsScreenState extends State<CategoryProductsScreen> with Si
                       ),
                       onClear: () {
                         _search.clear();
-                        _apply();
                       },
                     ),
                   ),
@@ -310,7 +493,7 @@ class _CategoryProductsScreenState extends State<CategoryProductsScreen> with Si
                       selected: _subCat == null,
                       onTap: () {
                         setState(() => _subCat = null);
-                        _apply();
+                        _applyLocalFilters();
                       },
                     );
                   }
@@ -323,11 +506,11 @@ class _CategoryProductsScreenState extends State<CategoryProductsScreen> with Si
                   }
                   final s = _subCategories[i - 2];
                   return _Pill(
-                    text: localizeProductText(context, s),
+                    text: s,
                     selected: _subCat == s,
                     onTap: () {
                       setState(() => _subCat = s);
-                      _apply();
+                      _applyLocalFilters();
                     },
                   );
                 },
@@ -338,30 +521,67 @@ class _CategoryProductsScreenState extends State<CategoryProductsScreen> with Si
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-              child: _ProductsMiniSummary(
-                productsCount: _view.length,
-                promoCount: promoCount,
-                sortLabel: _sortLabel(context, _sort),
-                promoActive: _onlyPromo,
-                sortActive: _sort != SortOption.recommended,
-                onTapProducts: () {
-                  HapticFeedback.selectionClick();
-                  setState(() {
-                    _subCat = null;
-                  });
-                  _apply();
-                },
-                onTapPromos: () {
-                  HapticFeedback.selectionClick();
-                  setState(() {
-                    _onlyPromo = !_onlyPromo;
-                  });
-                  _apply();
-                },
-                onTapSort: _openSortQuick,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _ProductsMiniSummary(
+                    productsCount: _view.length,
+                    totalResults: _totalResults,
+                    promoCount: promoCount,
+                    sortLabel: _sortLabel(context, _sort),
+                    promoActive: _onlyPromo,
+                    sortActive: _sort != SortOption.recommended,
+                    onTapProducts: () {
+                      HapticFeedback.selectionClick();
+                      setState(() {
+                        _subCat = null;
+                      });
+                      _applyLocalFilters();
+                    },
+                    onTapPromos: () {
+                      HapticFeedback.selectionClick();
+                      setState(() {
+                        _onlyPromo = !_onlyPromo;
+                      });
+                      _scheduleReload(immediate: true);
+                    },
+                    onTapSort: _openSortQuick,
+                  ),
+                ],
               ),
             ),
           ),
+
+          if (_isLoading)
+            const SliverToBoxAdapter(
+              child: Padding(
+                padding: EdgeInsets.fromLTRB(16, 0, 16, 8),
+                child: LinearProgressIndicator(
+                  minHeight: 3,
+                  color: AppColors.bordeaux,
+                  backgroundColor: AppColors.soft,
+                ),
+              ),
+            ),
+
+          if (_loadError != null)
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+                child: Text(
+                  tr3(
+                    context,
+                    fr: "Impossible de charger les produits. Réessayez.",
+                    en: "Unable to load products. Please retry.",
+                    ar: "تعذر تحميل المنتجات. حاول مرة أخرى.",
+                  ),
+                  style: const TextStyle(
+                    color: AppColors.bordeaux,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ),
 
           const SliverToBoxAdapter(child: SizedBox(height: 10)),
 
@@ -379,7 +599,7 @@ class _CategoryProductsScreenState extends State<CategoryProductsScreen> with Si
                           _maxPrice = 200;
                           _sort = SortOption.recommended;
                         });
-                        _apply();
+                        _scheduleReload(immediate: true);
                       },
                     ),
                   )
@@ -409,7 +629,7 @@ class _CategoryProductsScreenState extends State<CategoryProductsScreen> with Si
                               ),
                             );
                           },
-                          onFav: () => _toggleFav(p),
+                          onFav: () async => _toggleFav(p),
                         );
                       },
                       childCount: _view.length,
@@ -541,6 +761,7 @@ class _AnimatedSearchNoShadowState extends State<_AnimatedSearchNoShadow> {
 
 class _ProductsMiniSummary extends StatelessWidget {
   final int productsCount;
+  final int totalResults;
   final int promoCount;
   final String sortLabel;
   final bool promoActive;
@@ -551,6 +772,7 @@ class _ProductsMiniSummary extends StatelessWidget {
 
   const _ProductsMiniSummary({
     required this.productsCount,
+    required this.totalResults,
     required this.promoCount,
     required this.sortLabel,
     required this.promoActive,
@@ -578,9 +800,15 @@ class _ProductsMiniSummary extends StatelessWidget {
               icon: Icons.inventory_2_rounded,
               text: tr3(
                 context,
-                fr: '$productsCount produits',
-                en: '$productsCount products',
-                ar: '$productsCount منتج',
+                fr: totalResults > 0 && totalResults != productsCount
+                    ? '$productsCount / $totalResults produits'
+                    : '$productsCount produits',
+                en: totalResults > 0 && totalResults != productsCount
+                    ? '$productsCount / $totalResults products'
+                    : '$productsCount products',
+                ar: totalResults > 0 && totalResults != productsCount
+                    ? '$productsCount / $totalResults منتج'
+                    : '$productsCount منتج',
               ),
               onTap: onTapProducts,
             ),
@@ -959,7 +1187,7 @@ class _ProductCardFineState extends State<_ProductCardFine> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      localizeProductText(context, p.name),
+                      p.name,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
@@ -1095,7 +1323,7 @@ class _MiniBadge extends StatelessWidget {
 
 /* ===================== FILTER & SORT ===================== */
 
-enum SortOption { recommended, top, newest, priceLow, priceHigh }
+enum SortOption { recommended, top, newest, rating, priceLow, priceHigh }
 
 String _sortLabel(BuildContext context, SortOption sort) {
   switch (sort) {
@@ -1105,6 +1333,8 @@ String _sortLabel(BuildContext context, SortOption sort) {
       return tr3(context, fr: 'Top ventes', en: 'Top sales', ar: 'الأكثر مبيعاً');
     case SortOption.newest:
       return tr3(context, fr: 'Nouveautés', en: 'Newest', ar: 'الأحدث');
+    case SortOption.rating:
+      return tr3(context, fr: 'Mieux notés', en: 'Top rated', ar: 'الأعلى تقييماً');
     case SortOption.priceLow:
       return tr3(context, fr: 'Prix croissant', en: 'Price low-high', ar: 'السعر من الأقل للأعلى');
     case SortOption.priceHigh:
@@ -1263,6 +1493,7 @@ class _SortSheet extends StatelessWidget {
           _RadioTile(tr3(context, fr: "Recommandé", en: "Recommended", ar: "موصى به"), SortOption.recommended, current, onPick),
           _RadioTile(tr3(context, fr: "Top ventes", en: "Top sales", ar: "الأكثر مبيعاً"), SortOption.top, current, onPick),
           _RadioTile(tr3(context, fr: "Nouveautés", en: "Newest", ar: "الأحدث"), SortOption.newest, current, onPick),
+          _RadioTile(tr3(context, fr: "Mieux notés", en: "Top rated", ar: "الأعلى تقييماً"), SortOption.rating, current, onPick),
           _RadioTile(tr3(context, fr: "Prix: bas → haut", en: "Price: low → high", ar: "السعر: من الأقل → الأعلى"), SortOption.priceLow, current, onPick),
           _RadioTile(tr3(context, fr: "Prix: haut → bas", en: "Price: high → low", ar: "السعر: من الأعلى → الأقل"), SortOption.priceHigh, current, onPick),
         ],
@@ -1283,6 +1514,7 @@ class _SortPick extends StatelessWidget {
         _RadioTile(tr3(context, fr: "Recommandé", en: "Recommended", ar: "موصى به"), SortOption.recommended, current, onPick),
         _RadioTile(tr3(context, fr: "Top ventes", en: "Top sales", ar: "الأكثر مبيعاً"), SortOption.top, current, onPick),
         _RadioTile(tr3(context, fr: "Nouveautés", en: "Newest", ar: "الأحدث"), SortOption.newest, current, onPick),
+        _RadioTile(tr3(context, fr: "Mieux notés", en: "Top rated", ar: "الأعلى تقييماً"), SortOption.rating, current, onPick),
         _RadioTile(tr3(context, fr: "Prix: bas → haut", en: "Price: low → high", ar: "السعر: من الأقل → الأعلى"), SortOption.priceLow, current, onPick),
         _RadioTile(tr3(context, fr: "Prix: haut → bas", en: "Price: high → low", ar: "السعر: من الأعلى → الأقل"), SortOption.priceHigh, current, onPick),
       ],
@@ -1408,7 +1640,7 @@ class _ProSheetNoShadow extends StatelessWidget {
   }
 }
 
-/* ===================== MOCK DATA ===================== */
+/* ===================== UI MODEL ===================== */
 
 class Product {
   final String id;
@@ -1440,101 +1672,4 @@ class Product {
     required this.score,
     required this.createdAt,
   });
-}
-
-List<String> _mockSubCategories(String cat) {
-  switch (cat.toLowerCase().trim()) {
-    case "electromenager":
-    case "électroménager":
-      return const ["Frigo", "Ghasala", "Gaz", "Four", "Micro-ondes"];
-    case "tv & multimédia":
-    case "tv multimedia":
-      return const ["Smart TV", "Écrans", "Audio", "Accessoires"];
-    case "cuisine & vaisselle":
-    case "cuisine vaisselle":
-      return const ["Ma3oun", "Plats", "Assiettes", "Casseroles", "Ustensiles"];
-    case "maison":
-      return const ["Nettoyage", "Lessive", "Hygiène maison", "Rangement"];
-    case "fruits & légumes":
-      return const ["Tomates", "Agrumes", "Pommes", "Salades", "Légumes"];
-    case "produits laitiers":
-      return const ["Lait", "Fromage", "Yaourt", "Beurre"];
-    case "boulangerie":
-      return const ["Pain", "Viennoiseries", "Gâteaux"];
-    default:
-      return const ["Top", "Classiques", "Nouveaux"];
-  }
-}
-
-List<Product> _mockProducts(String cat) {
-  final r = Random(2);
-  final subs = _mockSubCategories(cat);
-  final base = _categoryImagesFor(cat);
-
-  return List.generate(18, (i) {
-    final sub = subs[r.nextInt(subs.length)];
-    final price = (5 + r.nextInt(60)) + r.nextDouble();
-    final promo = r.nextBool() && r.nextBool();
-    final bio = r.nextBool() && r.nextBool();
-    final isNew = i % 5 == 0;
-    final pop = i % 4 == 0;
-
-    return Product(
-      id: "$cat-$i",
-      name: "$sub • Produit ${i + 1}",
-      subCategory: sub,
-      image: base[i % base.length],
-      price: double.parse(price.toStringAsFixed(2)),
-      oldPrice: promo ? double.parse((price + 6).toStringAsFixed(2)) : null,
-      isPromo: promo,
-      isBio: bio,
-      isNew: isNew,
-      isPopular: pop,
-      score: 40 + r.nextInt(60),
-      createdAt: DateTime.now().subtract(Duration(days: r.nextInt(30))),
-    );
-  });
-}
-
-List<String> _categoryImagesFor(String cat) {
-  final normalized = cat.toLowerCase().trim();
-
-  if (normalized == "electromenager" || normalized == "électroménager") {
-    return const [
-      "https://images.pexels.com/photos/5825570/pexels-photo-5825570.jpeg?auto=compress&cs=tinysrgb&w=900",
-      "https://images.pexels.com/photos/5591838/pexels-photo-5591838.jpeg?auto=compress&cs=tinysrgb&w=900",
-      "https://images.pexels.com/photos/6996164/pexels-photo-6996164.jpeg?auto=compress&cs=tinysrgb&w=900",
-      "https://images.pexels.com/photos/4108726/pexels-photo-4108726.jpeg?auto=compress&cs=tinysrgb&w=900",
-    ];
-  }
-
-  if (normalized == "tv & multimédia" || normalized == "tv multimedia") {
-    return const [
-      "https://images.pexels.com/photos/5825570/pexels-photo-5825570.jpeg?auto=compress&cs=tinysrgb&w=900",
-      "https://images.pexels.com/photos/6976095/pexels-photo-6976095.jpeg?auto=compress&cs=tinysrgb&w=900",
-      "https://images.pexels.com/photos/1444416/pexels-photo-1444416.jpeg?auto=compress&cs=tinysrgb&w=900",
-    ];
-  }
-
-  if (normalized == "cuisine & vaisselle" || normalized == "cuisine vaisselle") {
-    return const [
-      "https://images.pexels.com/photos/4226805/pexels-photo-4226805.jpeg?auto=compress&cs=tinysrgb&w=900",
-      "https://images.pexels.com/photos/6996073/pexels-photo-6996073.jpeg?auto=compress&cs=tinysrgb&w=900",
-      "https://images.pexels.com/photos/6207734/pexels-photo-6207734.jpeg?auto=compress&cs=tinysrgb&w=900",
-    ];
-  }
-
-  if (normalized == "fruits & légumes") {
-    return const [
-      "https://images.pexels.com/photos/1435904/pexels-photo-1435904.jpeg?auto=compress&cs=tinysrgb&w=900",
-      "https://images.pexels.com/photos/1132047/pexels-photo-1132047.jpeg?auto=compress&cs=tinysrgb&w=900",
-      "https://images.pexels.com/photos/1300972/pexels-photo-1300972.jpeg?auto=compress&cs=tinysrgb&w=900",
-    ];
-  }
-
-  return const [
-    "https://images.pexels.com/photos/4050347/pexels-photo-4050347.jpeg?auto=compress&cs=tinysrgb&w=900",
-    "https://images.pexels.com/photos/102104/pexels-photo-102104.jpeg?auto=compress&cs=tinysrgb&w=900",
-    "https://images.pexels.com/photos/264636/pexels-photo-264636.jpeg?auto=compress&cs=tinysrgb&w=900",
-  ];
 }

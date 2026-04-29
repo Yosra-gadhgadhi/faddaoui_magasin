@@ -213,11 +213,13 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final surface = Theme.of(context).colorScheme.surface;
     return Scaffold(
-      backgroundColor: const Color(0xFFFAFAFA),
+      backgroundColor: surface,
 
       appBar: AppBar(
-        backgroundColor: const Color(0xFFFAFAFA),
+        toolbarHeight: 78,
+        backgroundColor: surface,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         titleSpacing: 16,

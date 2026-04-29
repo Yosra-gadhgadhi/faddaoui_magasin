@@ -1,11 +1,14 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:elfaddoui_app/core/l10n/tr3.dart';
-import 'package:elfaddoui_app/core/l10n/product_text_localizer.dart';
-
 import 'package:elfaddoui_app/core/theme/app_colors.dart';
 import 'package:elfaddoui_app/core/theme/app_spacing.dart';
 import 'package:elfaddoui_app/core/theme/app_text_styles.dart';
 import 'package:elfaddoui_app/core/widgets/empty_state_panel.dart';
+import 'package:elfaddoui_app/features/catalog/presentation/screens/product_details_screen.dart';
+import 'package:elfaddoui_app/features/home/presentation/cubit/home_state.dart';
+import 'package:elfaddoui_app/features/home/services/ai_home_service.dart';
 
 class SearchScreen extends StatefulWidget {
   const SearchScreen({super.key});
@@ -16,178 +19,136 @@ class SearchScreen extends StatefulWidget {
 
 class _SearchScreenState extends State<SearchScreen> {
   final TextEditingController _controller = TextEditingController();
+  final AiHomeService _api = AiHomeService();
 
-  final List<String> _history = ['Pommes', 'Lait', 'Pain'];
-  final List<String> _popular = ['Jus', 'Yaourt', 'Pates', 'Eau'];
-  final List<String> _fallbackQueries = ['lait', 'jus', 'pain'];
-  List<_SearchHit> _results = const [];
+  final List<String> _history = [];
+  List<String> _popular = const [];
+  List<Product> _results = const [];
 
-  static const List<_SearchProduct> _catalog = [
-    _SearchProduct('Lait Frais 1L', 'Boissons'),
-    _SearchProduct('Lait Amande', 'Boissons'),
-    _SearchProduct('Yaourt Nature', 'Produits Laitiers'),
-    _SearchProduct('Fromage Tranches', 'Produits Laitiers'),
-    _SearchProduct('Pain Complet', 'Boulangerie'),
-    _SearchProduct('Croissant Beurre', 'Boulangerie'),
-    _SearchProduct('Pates Italiennes', 'Epicerie'),
-    _SearchProduct('Riz Jasmin', 'Epicerie'),
-    _SearchProduct('Huile Olive', 'Epicerie'),
-    _SearchProduct('Jus Orange', 'Boissons'),
-    _SearchProduct('Eau Minerale', 'Boissons'),
-    _SearchProduct('Soda Citron', 'Boissons'),
-    _SearchProduct('Pommes Rouges', 'Fruits et Legumes'),
-    _SearchProduct('Bananes', 'Fruits et Legumes'),
-    _SearchProduct('Tomates', 'Fruits et Legumes'),
-    _SearchProduct('Concombre', 'Fruits et Legumes'),
-    _SearchProduct('Poulet Frais', 'Viandes et Poissons'),
-    _SearchProduct('Thon', 'Viandes et Poissons'),
-    _SearchProduct('Lessive Fraicheur', 'Produits Menagers'),
-    _SearchProduct('Shampoing Doux', 'Hygiene et Beaute'),
-  ];
-
-  static const Map<String, List<String>> _synonyms = {
-    'lait': ['lait', 'dairy', 'yaourt', 'fromage', 'beurre'],
-    'pain': ['pain', 'baguette', 'croissant', 'boulangerie'],
-    'boisson': ['boisson', 'jus', 'eau', 'soda', 'cafe', 'the'],
-    'fruit': ['fruit', 'pomme', 'banane', 'orange', 'tomate'],
-    'epicerie': ['epicerie', 'pates', 'riz', 'huile', 'conserve'],
-    'viande': ['viande', 'poulet', 'boeuf', 'poisson', 'thon'],
-    'menage': ['menage', 'lessive', 'nettoyant', 'javel'],
-    'beaute': ['beaute', 'hygiene', 'shampoing', 'savon', 'creme'],
-  };
+  bool _loading = false;
+  String? _error;
+  int _searchSeq = 0;
+  Timer? _debounce;
 
   @override
   void initState() {
     super.initState();
-    _controller.addListener(() {
-      setState(() {
-        _results = _search(_controller.text);
-      });
-    });
+    _controller.addListener(_onSearchChanged);
+    _loadPopular();
   }
 
   @override
   void dispose() {
+    _debounce?.cancel();
+    _controller.removeListener(_onSearchChanged);
     _controller.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadPopular() async {
+    try {
+      final products = await _api.searchPublicProducts(size: 12, sort: 'top');
+      if (!mounted) return;
+      final names = products
+          .map((e) => e.name.trim())
+          .where((e) => e.isNotEmpty)
+          .toSet()
+          .take(8)
+          .toList(growable: false);
+      setState(() => _popular = names);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _popular = const []);
+    }
+  }
+
+  void _onSearchChanged() {
+    _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 280), () {
+      _runSearch(_controller.text);
+    });
+  }
+
+  Future<void> _runSearch(String raw) async {
+    final q = raw.trim();
+    final seq = ++_searchSeq;
+
+    if (q.isEmpty) {
+      if (!mounted) return;
+      setState(() {
+        _results = const [];
+        _error = null;
+        _loading = false;
+      });
+      return;
+    }
+
+    if (!mounted) return;
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+
+    try {
+      final res = await _api.searchPublicProducts(query: q, size: 24);
+      if (!mounted || seq != _searchSeq) return;
+      setState(() {
+        _results = res;
+        _loading = false;
+      });
+    } catch (_) {
+      if (!mounted || seq != _searchSeq) return;
+      setState(() {
+        _results = const [];
+        _loading = false;
+        _error = tr3(
+          context,
+          fr: 'Erreur serveur',
+          en: 'Server error',
+          ar: 'خطأ في الخادم',
+        );
+      });
+    }
   }
 
   void _submitQuery(String raw) {
     final q = raw.trim();
     if (q.isEmpty) return;
 
-    if (!_history.contains(q)) {
-      _history.insert(0, q);
-      if (_history.length > 8) {
-        _history.removeLast();
-      }
-    }
+    _history.remove(q);
+    _history.insert(0, q);
+    if (_history.length > 10) _history.removeLast();
 
-    setState(() {
-      _controller.text = q;
-      _controller.selection =
-          TextSelection.collapsed(offset: _controller.text.length);
-      _results = _search(q);
-    });
-  }
-
-  List<_SearchHit> _search(String query) {
-    final q = _normalize(query);
-    if (q.isEmpty) return const [];
-
-    final scored = <_SearchHit>[];
-    for (final p in _catalog) {
-      final score = _scoreProduct(p, q);
-      if (score > 0) {
-        scored.add(_SearchHit(product: p, score: score));
-      }
-    }
-
-    scored.sort((a, b) => b.score.compareTo(a.score));
-    return scored.take(12).toList(growable: false);
-  }
-
-  int _scoreProduct(_SearchProduct product, String normalizedQuery) {
-    final queryTokens = normalizedQuery.split(' ').where((e) => e.isNotEmpty);
-    final name = _normalize(product.name);
-    final category = _normalize(product.category);
-    final productText = '$name $category';
-
-    var score = 0;
-
-    if (name.startsWith(normalizedQuery)) score += 120;
-    if (name.contains(normalizedQuery)) score += 95;
-    if (category.contains(normalizedQuery)) score += 55;
-
-    for (final token in queryTokens) {
-      if (token.length < 2) continue;
-
-      if (productText.contains(token)) {
-        score += 36;
-      }
-
-      for (final syn in _expandedSynonyms(token)) {
-        if (productText.contains(syn)) {
-          score += 24;
-          break;
-        }
-      }
-
-      final nameTokens = name.split(' ').where((e) => e.length >= 3);
-      var bestDistance = 99;
-      for (final nt in nameTokens) {
-        final d = _levenshtein(token, nt);
-        if (d < bestDistance) bestDistance = d;
-        if (bestDistance == 0) break;
-      }
-
-      if (bestDistance == 1) score += 20;
-      if (bestDistance == 2) score += 10;
-    }
-
-    if (queryTokens.length > 1 && name.contains(normalizedQuery)) {
-      score += 26;
-    }
-
-    return score;
-  }
-
-  Iterable<String> _expandedSynonyms(String token) sync* {
-    for (final entry in _synonyms.entries) {
-      final key = entry.key;
-      final values = entry.value;
-      final hit = key.contains(token) ||
-          token.contains(key) ||
-          values.any((v) => v.contains(token));
-      if (!hit) continue;
-      yield key;
-      yield* values;
-    }
+    _controller.text = q;
+    _controller.selection = TextSelection.collapsed(offset: q.length);
+    _runSearch(q);
   }
 
   List<String> _suggestionsFor(String query) {
-    final q = _normalize(query);
+    final q = query.trim().toLowerCase();
     if (q.isEmpty) return const [];
+    return _results
+        .map((e) => e.name)
+        .where((e) => e.toLowerCase().contains(q))
+        .toSet()
+        .take(8)
+        .toList(growable: false);
+  }
 
-    final suggestions = <String>{};
-
-    for (final p in _catalog) {
-      final normalized = _normalize(p.name);
-      if (normalized.contains(q) || normalized.startsWith(q)) {
-        suggestions.add(p.name);
-      }
-    }
-
-    for (final entry in _synonyms.entries) {
-      final key = entry.key;
-      final values = entry.value;
-      if (key.contains(q) || values.any((v) => v.contains(q))) {
-        suggestions.add(key);
-        suggestions.addAll(values.take(2));
-      }
-    }
-
-    return suggestions.take(8).toList(growable: false);
+  void _openProduct(Product p) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => ProductDetailsScreen(
+          productId: p.id,
+          initialName: p.name,
+          initialImage: p.image,
+          initialPrice: p.price,
+          initialOldPrice: p.oldPrice,
+          initialDescription: p.description,
+          initialCategory: p.category,
+        ),
+      ),
+    );
   }
 
   @override
@@ -196,9 +157,10 @@ class _SearchScreenState extends State<SearchScreen> {
     final suggestions = _suggestionsFor(_controller.text);
 
     return Scaffold(
-      backgroundColor: const Color(0xFFFAFAFA),
+      backgroundColor: Theme.of(context).colorScheme.surface,
       appBar: AppBar(
-        backgroundColor: const Color(0xFFFAFAFA),
+        toolbarHeight: 78,
+        backgroundColor: Theme.of(context).colorScheme.surface,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         titleSpacing: 16,
@@ -209,140 +171,109 @@ class _SearchScreenState extends State<SearchScreen> {
             setState(() {
               _controller.clear();
               _results = const [];
+              _error = null;
+              _loading = false;
             });
           },
         ),
       ),
-      body: _results.isNotEmpty
-          ? ListView.separated(
-              physics: const BouncingScrollPhysics(),
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-              itemCount: _results.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 10),
-              itemBuilder: (_, i) {
-                final hit = _results[i];
-                return _ResultTile(
-                  hit: hit,
-                  onTap: () => _submitQuery(hit.product.name),
-                );
-              },
-            )
-          : SingleChildScrollView(
-              physics: const BouncingScrollPhysics(),
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (hasQuery) ...[
-                    EmptyStatePanel(
-                      icon: Icons.search_off_rounded,
-                      title: tr3(
-                        context,
-                        fr: 'Aucun resultat',
-                        en: 'No result',
-                        ar: 'لا توجد نتائج',
-                      ),
-                      subtitle: tr3(
-                        context,
-                        fr: 'Essaye: lait, jus, pain.',
-                        en: 'Try: milk, juice, bread.',
-                        ar: 'جرّب: حليب، عصير، خبز.',
-                      ),
-                      primaryLabel: tr3(
-                        context,
-                        fr: 'Effacer la recherche',
-                        en: 'Clear search',
-                        ar: 'مسح البحث',
-                      ),
-                      onPrimary: () {
-                        setState(() {
-                          _controller.clear();
-                          _results = const [];
-                        });
-                      },
-                    ),
-                    if (suggestions.isNotEmpty) ...[
-                      const SizedBox(height: 14),
+      body: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : _results.isNotEmpty
+              ? ListView.separated(
+                  physics: const BouncingScrollPhysics(),
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+                  itemCount: _results.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 10),
+                  itemBuilder: (_, i) {
+                    final p = _results[i];
+                    return _ResultTile(
+                      product: p,
+                      onTap: () => _openProduct(p),
+                    );
+                  },
+                )
+              : SingleChildScrollView(
+                  physics: const BouncingScrollPhysics(),
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (hasQuery) ...[
+                        EmptyStatePanel(
+                          icon: Icons.search_off_rounded,
+                          title: tr3(
+                            context,
+                            fr: 'Aucun resultat',
+                            en: 'No result',
+                            ar: 'لا توجد نتائج',
+                          ),
+                          subtitle: _error ??
+                              tr3(
+                                context,
+                                fr: 'Aucun produit trouve pour cette recherche.',
+                                en: 'No product found for this query.',
+                                ar: 'لا يوجد منتج مطابق لهذا البحث.',
+                              ),
+                          primaryLabel: tr3(
+                            context,
+                            fr: 'Effacer la recherche',
+                            en: 'Clear search',
+                            ar: 'مسح البحث',
+                          ),
+                          onPrimary: () {
+                            setState(() {
+                              _controller.clear();
+                              _results = const [];
+                              _error = null;
+                            });
+                          },
+                        ),
+                        if (suggestions.isNotEmpty) ...[
+                          const SizedBox(height: 14),
+                          Text(
+                            tr3(context, fr: 'Suggestions', en: 'Suggestions', ar: 'اقتراحات'),
+                            style: AppTextStyles.h3.copyWith(fontWeight: FontWeight.w900),
+                          ),
+                          const SizedBox(height: 10),
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: suggestions
+                                .map((s) => _Chip(text: s, onTap: () => _submitQuery(s)))
+                                .toList(growable: false),
+                          ),
+                        ],
+                        const SizedBox(height: 18),
+                      ],
                       Text(
-                        tr3(context, fr: 'Suggestions intelligentes', en: 'Smart suggestions', ar: 'اقتراحات ذكية'),
-                        style: AppTextStyles.h3
-                            .copyWith(fontWeight: FontWeight.w900),
+                        tr3(context, fr: 'Recherches recentes', en: 'Recent searches', ar: 'عمليات البحث الأخيرة'),
+                        style: AppTextStyles.h3.copyWith(fontWeight: FontWeight.w900),
                       ),
                       const SizedBox(height: 10),
                       Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: suggestions
-                            .map(
-                              (s) => _Chip(
-                                text: localizeProductText(context, s),
-                                onTap: () => _submitQuery(s),
-                              ),
-                            )
+                        spacing: 10,
+                        runSpacing: 10,
+                        children: _history
+                            .map((q) => _Chip(text: q, onTap: () => _submitQuery(q)))
+                            .toList(growable: false),
+                      ),
+                      const SizedBox(height: 22),
+                      Text(
+                        tr3(context, fr: 'Produits populaires', en: 'Popular products', ar: 'منتجات شائعة'),
+                        style: AppTextStyles.h3.copyWith(fontWeight: FontWeight.w900),
+                      ),
+                      const SizedBox(height: 10),
+                      Wrap(
+                        spacing: 10,
+                        runSpacing: 10,
+                        children: _popular
+                            .map((q) => _Chip(text: q, onTap: () => _submitQuery(q)))
                             .toList(growable: false),
                       ),
                     ],
-                    const SizedBox(height: 18),
-                  ],
-                  Text(
-                    tr3(context, fr: 'Recherches recentes', en: 'Recent searches', ar: 'عمليات البحث الأخيرة'),
-                    style:
-                        AppTextStyles.h3.copyWith(fontWeight: FontWeight.w900),
                   ),
-                  const SizedBox(height: 10),
-                  Wrap(
-                    spacing: 10,
-                    runSpacing: 10,
-                    children: _history
-                        .map(
-                          (q) => _Chip(
-                            text: localizeProductText(context, q),
-                            onTap: () => _submitQuery(q),
-                          ),
-                        )
-                        .toList(growable: false),
-                  ),
-                  const SizedBox(height: 22),
-                  Text(
-                    tr3(context, fr: 'Recherches populaires', en: 'Popular searches', ar: 'عمليات البحث الشائعة'),
-                    style:
-                        AppTextStyles.h3.copyWith(fontWeight: FontWeight.w900),
-                  ),
-                  const SizedBox(height: 10),
-                  Wrap(
-                    spacing: 10,
-                    runSpacing: 10,
-                    children: _popular
-                        .map(
-                          (q) => _Chip(
-                            text: localizeProductText(context, q),
-                            onTap: () => _submitQuery(q),
-                          ),
-                        )
-                        .toList(growable: false),
-                  ),
-                  const SizedBox(height: 22),
-                  Text(
-                    tr3(context, fr: 'Essaye aussi', en: 'Try also', ar: 'جرّب أيضاً'),
-                    style:
-                        AppTextStyles.h3.copyWith(fontWeight: FontWeight.w900),
-                  ),
-                  const SizedBox(height: 10),
-                  Wrap(
-                    spacing: 10,
-                    runSpacing: 10,
-                    children: _fallbackQueries
-                        .map(
-                          (q) => _Chip(
-                            text: localizeProductText(context, q),
-                            onTap: () => _submitQuery(q),
-                          ),
-                        )
-                        .toList(growable: false),
-                  ),
-                ],
-              ),
-            ),
+                ),
     );
   }
 }
@@ -403,8 +334,7 @@ class _SearchBarInline extends StatelessWidget {
                     borderRadius: BorderRadius.circular(14),
                     border: Border.all(color: AppColors.border),
                   ),
-                  child:
-                      const Icon(Icons.close_rounded, color: AppColors.muted),
+                  child: const Icon(Icons.close_rounded, color: AppColors.muted),
                 ),
               );
             },
@@ -416,14 +346,13 @@ class _SearchBarInline extends StatelessWidget {
 }
 
 class _ResultTile extends StatelessWidget {
-  final _SearchHit hit;
+  final Product product;
   final VoidCallback onTap;
 
-  const _ResultTile({required this.hit, required this.onTap});
+  const _ResultTile({required this.product, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    final p = hit.product;
     return InkWell(
       borderRadius: BorderRadius.circular(16),
       onTap: onTap,
@@ -438,18 +367,27 @@ class _ResultTile extends StatelessWidget {
         child: Row(
           children: [
             Container(
-              height: 42,
-              width: 42,
+              height: 44,
+              width: 44,
               decoration: BoxDecoration(
                 color: AppColors.soft,
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(color: AppColors.border),
               ),
-              child: const Icon(
-                Icons.shopping_bag_rounded,
-                color: AppColors.bordeaux,
-                size: 20,
-              ),
+              child: product.image.trim().isEmpty
+                  ? const Icon(Icons.shopping_bag_rounded, color: AppColors.bordeaux, size: 20)
+                  : ClipRRect(
+                      borderRadius: BorderRadius.circular(11),
+                      child: Image.network(
+                        product.image,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => const Icon(
+                          Icons.shopping_bag_rounded,
+                          color: AppColors.bordeaux,
+                          size: 20,
+                        ),
+                      ),
+                    ),
             ),
             const SizedBox(width: 10),
             Expanded(
@@ -457,17 +395,14 @@ class _ResultTile extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    localizeProductText(context, p.name),
+                    product.name,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w900,
-                      color: AppColors.text,
-                    ),
+                    style: const TextStyle(fontWeight: FontWeight.w900, color: AppColors.text),
                   ),
                   const SizedBox(height: 3),
                   Text(
-                    localizeProductText(context, p.category),
+                    product.category ?? '',
                     style: const TextStyle(
                       fontWeight: FontWeight.w700,
                       color: AppColors.muted,
@@ -477,11 +412,7 @@ class _ResultTile extends StatelessWidget {
                 ],
               ),
             ),
-            const Icon(
-              Icons.arrow_forward_ios_rounded,
-              size: 16,
-              color: AppColors.muted,
-            ),
+            const Icon(Icons.arrow_forward_ios_rounded, size: 16, color: AppColors.muted),
           ],
         ),
       ),
@@ -520,72 +451,4 @@ class _Chip extends StatelessWidget {
       ),
     );
   }
-}
-
-class _SearchProduct {
-  final String name;
-  final String category;
-
-  const _SearchProduct(this.name, this.category);
-}
-
-class _SearchHit {
-  final _SearchProduct product;
-  final int score;
-
-  const _SearchHit({required this.product, required this.score});
-}
-
-String _normalize(String input) {
-  const source = 'ÀÁÂÃÄÅàáâãäåÈÉÊËèéêëÌÍÎÏìíîïÒÓÔÕÖØòóôõöøÙÚÛÜùúûüÇçÑñÝýÿ';
-  const target = 'AAAAAAaaaaaaEEEEeeeeIIIIiiiiOOOOOOooooooUUUUuuuuCcNnYyy';
-  final buffer = StringBuffer();
-
-  for (final rune in input.trim().toLowerCase().runes) {
-    final ch = String.fromCharCode(rune);
-    final idx = source.indexOf(ch);
-    if (idx >= 0) {
-      buffer.write(target[idx].toLowerCase());
-    } else {
-      buffer.write(ch);
-    }
-  }
-
-  return buffer
-      .toString()
-      .replaceAll(RegExp(r'[^a-z0-9 ]'), ' ')
-      .replaceAll(RegExp(r'\s+'), ' ')
-      .trim();
-}
-
-int _levenshtein(String a, String b) {
-  if (a == b) return 0;
-  if (a.isEmpty) return b.length;
-  if (b.isEmpty) return a.length;
-
-  final prev = List<int>.generate(b.length + 1, (i) => i);
-  final cur = List<int>.filled(b.length + 1, 0);
-
-  for (var i = 1; i <= a.length; i++) {
-    cur[0] = i;
-    for (var j = 1; j <= b.length; j++) {
-      final cost = a.codeUnitAt(i - 1) == b.codeUnitAt(j - 1) ? 0 : 1;
-      cur[j] = _min3(
-        cur[j - 1] + 1,
-        prev[j] + 1,
-        prev[j - 1] + cost,
-      );
-    }
-    for (var j = 0; j <= b.length; j++) {
-      prev[j] = cur[j];
-    }
-  }
-  return prev[b.length];
-}
-
-int _min3(int a, int b, int c) {
-  var m = a;
-  if (b < m) m = b;
-  if (c < m) m = c;
-  return m;
 }

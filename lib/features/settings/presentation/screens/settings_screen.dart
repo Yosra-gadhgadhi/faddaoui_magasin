@@ -16,7 +16,7 @@ class SettingsScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: surface,
       appBar: AppBar(
-        toolbarHeight: 72,
+        toolbarHeight: 78,
         backgroundColor: surface,
         surfaceTintColor: Colors.transparent,
         elevation: 0,

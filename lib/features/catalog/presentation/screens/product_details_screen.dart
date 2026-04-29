@@ -116,39 +116,17 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
       if (p != null) {
         _product = p;
       } else {
-        _product ??= _buildLocalFallbackProduct(widget.productId);
+        if (_product == null) {
+          _error = tr3(
+            context,
+            fr: "Produit introuvable sur le serveur.",
+            en: "Product not found on server.",
+            ar: "المنتج غير موجود على الخادم.",
+          );
+        }
       }
       _loading = false;
     });
-  }
-
-  Product _buildLocalFallbackProduct(String rawId) {
-    final cleaned = rawId.replaceAll('_', ' ').replaceAll('-', ' ').trim();
-    final parts = cleaned.split(RegExp(r'\s+')).where((e) => e.isNotEmpty).toList();
-    final title =
-        parts.isEmpty ? "Produit" : parts.map((w) => "${w[0].toUpperCase()}${w.substring(1)}").join(' ');
-
-    final seed = rawId.hashCode.abs();
-    final price = 5 + (seed % 60) + ((seed % 100) / 100.0);
-
-    return Product(
-      id: rawId,
-      name: title,
-      description:
-          tr3(
-            context,
-            fr: "Produit disponible localement. Les détails backend ne sont pas encore synchronisés pour cet article.",
-            en: "Product available locally. Backend details are not fully synchronized yet for this item.",
-            ar: "المنتج متوفر محليًا. تفاصيل الخلفية غير متزامنة بالكامل لهذا العنصر بعد.",
-          ),
-      category: tr3(context, fr: "Catalogue", en: "Catalog", ar: "الكتالوج"),
-      image: _fallbackImage,
-      price: double.parse(price.toStringAsFixed(2)),
-      oldPrice: null,
-      discountPctApi: null,
-      rating: 4.4,
-      reviews: 42,
-    );
   }
 
   void _toastPremium(String text) {
@@ -181,7 +159,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
     );
   }
 
-  void _toggleFav() {
+  Future<void> _toggleFav() async {
     HapticFeedback.selectionClick();
     final fav = FavoriteItem(
       id: widget.productId,
@@ -189,8 +167,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
       image: productImages.first,
       price: _price,
     );
-    context.read<FavoritesCubit>().toggle(fav);
-    final isFav = context.read<FavoritesCubit>().isFavorite(widget.productId);
+    final isFav = await context.read<FavoritesCubit>().toggle(fav);
     _toastPremium(
       isFav
           ? tr3(context, fr: "Ajouté aux favoris", en: "Added to favorites", ar: "تمت الإضافة للمفضلة")
@@ -200,7 +177,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    const bg = Colors.white;
+    final bg = Theme.of(context).colorScheme.surface;
     final isFav = context.watch<FavoritesCubit>().isFavorite(widget.productId);
     final cartQty =
         context.select<CartCubit, int>((c) => c.state[widget.productId]?.qty ?? 0);
@@ -208,16 +185,18 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
     final totalPrice = _price * effectiveQty;
 
     if (_loading) {
-      return const Scaffold(
+      return Scaffold(
         backgroundColor: bg,
-        body: _ProductDetailsSkeleton(),
+        body: const _ProductDetailsSkeleton(),
       );
     }
     if (_error != null) {
       return Scaffold(
         backgroundColor: bg,
         appBar: AppBar(
+          toolbarHeight: 78,
           backgroundColor: bg,
+          surfaceTintColor: Colors.transparent,
           elevation: 0,
           title: Text(tr3(context, fr: "Détails", en: "Details", ar: "التفاصيل")),
         ),
@@ -245,6 +224,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
         slivers: [
           SliverAppBar(
             pinned: true,
+            toolbarHeight: 78,
             backgroundColor: bg,
             surfaceTintColor: Colors.transparent,
             elevation: 0,
@@ -264,7 +244,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                 icon: isFav
                     ? Icons.favorite_rounded
                     : Icons.favorite_border_rounded,
-                onTap: _toggleFav,
+                onTap: () async => _toggleFav(),
               ),
               const SizedBox(width: 8),
               _IconChip(icon: Icons.ios_share_rounded, onTap: () {}),

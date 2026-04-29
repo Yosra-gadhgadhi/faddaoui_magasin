@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:elfaddoui_app/core/l10n/tr3.dart';
 import 'package:elfaddoui_app/core/theme/app_colors.dart';
+import 'package:elfaddoui_app/core/theme/app_spacing.dart';
 import 'package:elfaddoui_app/core/widgets/app_snackbar.dart';
 import 'package:elfaddoui_app/core/widgets/empty_state_panel.dart';
 
@@ -54,9 +55,10 @@ class _LoyaltyVouchersScreenState extends State<LoyaltyVouchersScreen> {
     }).toList();
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: Theme.of(context).colorScheme.surface,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        toolbarHeight: 78,
+        backgroundColor: Theme.of(context).colorScheme.surface,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         centerTitle: true,
@@ -175,7 +177,7 @@ class _LoyaltyVouchersScreenState extends State<LoyaltyVouchersScreen> {
                                 ),
                                 const SizedBox(height: 10),
                                 SizedBox(
-                                  height: 40,
+                                  height: AppSize.buttonHeight,
                                   child: ElevatedButton(
                                     onPressed: v.expired
                                         ? null
@@ -198,7 +200,7 @@ class _LoyaltyVouchersScreenState extends State<LoyaltyVouchersScreen> {
                                       disabledForegroundColor: AppColors.muted,
                                       elevation: 0,
                                       shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(12),
+                                        borderRadius: BorderRadius.circular(AppRadius.md),
                                       ),
                                     ),
                                     child: Text(
@@ -300,6 +302,7 @@ class _LoyaltyVouchersScreenState extends State<LoyaltyVouchersScreen> {
             ),
             const SizedBox(height: 14),
             SizedBox(
+              height: AppSize.buttonHeight,
               width: double.infinity,
               child: ElevatedButton(
                 onPressed: () => Navigator.of(context).pop(),
@@ -308,7 +311,7 @@ class _LoyaltyVouchersScreenState extends State<LoyaltyVouchersScreen> {
                   foregroundColor: Colors.white,
                   elevation: 0,
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(AppRadius.md),
                   ),
                 ),
                 child: Text(
