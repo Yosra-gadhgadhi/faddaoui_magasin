@@ -347,6 +347,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
         centerTitle: true,
         systemOverlayStyle: SystemUiOverlayStyle.dark,
         leading: IconButton(
+          tooltip: MaterialLocalizations.of(context).backButtonTooltip,
           onPressed: () => Navigator.of(context).pop(),
           icon: const Icon(
             Icons.arrow_back_ios_new_rounded,

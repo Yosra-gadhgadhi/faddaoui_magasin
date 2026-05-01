@@ -16,6 +16,19 @@ class ApiConstants {
     return "http://127.0.0.1:8080";
   }
 
-  static const auth = "/auth";
+  static const auth = "/api/auth";
   static const users = "/api/users";
+
+  static String resolveAssetUrl(String? rawUrl) {
+    final input = (rawUrl ?? '').trim();
+    if (input.isEmpty) return '';
+
+    final uri = Uri.tryParse(input);
+    if (uri != null && (uri.scheme == 'http' || uri.scheme == 'https')) {
+      return input;
+    }
+
+    final normalizedPath = input.startsWith('/') ? input : '/$input';
+    return '$baseUrl$normalizedPath';
+  }
 }

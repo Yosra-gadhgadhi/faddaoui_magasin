@@ -2,15 +2,24 @@ class AuthResponseModel {
   final String token;
   AuthResponseModel({required this.token});
 
-  factory AuthResponseModel.fromJson(Map<String, dynamic> json) {
-    final token = _extractToken(json);
+  factory AuthResponseModel.fromJson(
+    Map<String, dynamic> json, {
+    bool allowMessageFallback = false,
+  }) {
+    final token = _extractToken(
+      json,
+      allowMessageFallback: allowMessageFallback,
+    );
     if (token.isEmpty) {
       throw const FormatException("Aucun token reçu depuis le serveur.");
     }
     return AuthResponseModel(token: token);
   }
 
-  static String _extractToken(Map<String, dynamic> json) {
+  static String _extractToken(
+    Map<String, dynamic> json, {
+    required bool allowMessageFallback,
+  }) {
     final direct = json["token"];
     if (direct is String && direct.isNotEmpty) return direct;
 
@@ -23,7 +32,7 @@ class AuthResponseModel {
     if (accessToken is String && accessToken.isNotEmpty) return accessToken;
 
     final message = json["message"];
-    if (message is String && message.isNotEmpty) {
+    if (allowMessageFallback && message is String && message.isNotEmpty) {
       // Some signup APIs return only a success message.
       return "__signup_ok__";
     }

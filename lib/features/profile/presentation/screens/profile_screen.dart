@@ -655,7 +655,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen>
   @override
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context);
-    const bg = Colors.white;
+    final bg = Theme.of(context).colorScheme.surface;
 
     return Scaffold(
       backgroundColor: bg,
@@ -669,6 +669,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen>
         centerTitle: true,
         systemOverlayStyle: SystemUiOverlayStyle.dark,
         leading: IconButton(
+          tooltip: MaterialLocalizations.of(context).backButtonTooltip,
           icon: const Icon(
             Icons.arrow_back_ios_new_rounded,
             color: AppColors.bordeauxDark,

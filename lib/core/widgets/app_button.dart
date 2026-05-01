@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
+import '../theme/app_spacing.dart';
 import 'loading_indicator.dart';
 
 class AppButton extends StatelessWidget {
@@ -19,7 +20,7 @@ class AppButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 52,
+      height: AppSize.buttonHeight,
       width: double.infinity,
       child: ElevatedButton(
         onPressed: loading ? null : onTap,
@@ -27,7 +28,9 @@ class AppButton extends StatelessWidget {
           backgroundColor: AppColors.bordeaux,
           foregroundColor: Colors.white,
           elevation: 0,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppRadius.md),
+          ),
         ),
         child: loading
             ? const AppButtonLoadingIndicator(size: 18, strokeWidth: 2)
@@ -38,9 +41,16 @@ class AppButton extends StatelessWidget {
                     Icon(icon, size: 18),
                     const SizedBox(width: 10),
                   ],
-                  Text(
-                    label,
-                    style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 14.5),
+                  Flexible(
+                    child: Text(
+                      label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w900,
+                        fontSize: 14.5,
+                      ),
+                    ),
                   ),
                 ],
               ),

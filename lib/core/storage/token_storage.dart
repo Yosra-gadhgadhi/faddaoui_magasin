@@ -13,6 +13,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 class TokenStorage {
   static const _kToken = "auth_token";
+  static const _kLastOrderId = "last_order_id";
   static const _kBiometricEnabled = "biometric_enabled";
   static const _kBiometricEmail = "biometric_email";
   static const _kBiometricPassword = "biometric_password";
@@ -21,7 +22,14 @@ class TokenStorage {
 
   Future<void> saveToken(String token) => _s.write(key: _kToken, value: token);
   Future<String?> readToken() => _s.read(key: _kToken);
-  Future<void> clear() => _s.delete(key: _kToken);
+  Future<void> clear() async {
+    await _s.delete(key: _kToken);
+    await _s.delete(key: _kLastOrderId);
+  }
+
+  Future<void> saveLastOrderId(String orderId) =>
+      _s.write(key: _kLastOrderId, value: orderId);
+  Future<String?> readLastOrderId() => _s.read(key: _kLastOrderId);
 
   Future<void> setBiometricEnabled(bool value) =>
       _s.write(key: _kBiometricEnabled, value: value ? '1' : '0');

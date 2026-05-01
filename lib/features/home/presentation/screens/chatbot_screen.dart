@@ -72,7 +72,7 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
     ChatMessage(
       role: ChatRole.bot,
       text:
-          "Bonjour 👋 Je suis votre assistant ElFaddaoui.\nDites-moi ce que vous cherchez.",
+          "Bonjour, je suis votre assistant ElFaddaoui.\nDites-moi ce que vous cherchez.",
       at: DateTime.now(),
     ),
   ];

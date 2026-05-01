@@ -10,6 +10,8 @@ class ProductListScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final width = MediaQuery.of(context).size.width;
+    final crossAxisCount = width >= 1024 ? 4 : (width >= 720 ? 3 : 2);
     return Scaffold(
       backgroundColor: Theme.of(context).colorScheme.surface,
 
@@ -39,11 +41,11 @@ class ProductListScreen extends StatelessWidget {
 
       body: GridView.builder(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 2,
+        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: crossAxisCount,
           crossAxisSpacing: 12,
           mainAxisSpacing: 12,
-          childAspectRatio: 0.70,
+          childAspectRatio: width >= 720 ? 0.74 : 0.70,
         ),
         itemCount: 10,
         itemBuilder: (context, index) {
@@ -117,10 +119,11 @@ class _ProductCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      borderRadius: BorderRadius.circular(22),
-      onTap: onTap,
-      child: Container(
+    return RepaintBoundary(
+      child: InkWell(
+        borderRadius: BorderRadius.circular(22),
+        onTap: onTap,
+        child: Container(
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(22),
@@ -186,6 +189,7 @@ class _ProductCard extends StatelessWidget {
               ),
             )
           ],
+        ),
         ),
       ),
     );

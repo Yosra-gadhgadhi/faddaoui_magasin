@@ -6,6 +6,7 @@ import 'package:elfaddoui_app/core/widgets/primary_card.dart';
 import 'package:elfaddoui_app/core/widgets/section_header.dart';
 import 'package:elfaddoui_app/core/widgets/empty_state_panel.dart';
 import 'package:elfaddoui_app/core/widgets/app_snackbar.dart';
+import 'package:elfaddoui_app/app/routes.dart';
 import 'package:elfaddoui_app/features/catalog/presentation/screens/categories_screen.dart';
 import 'package:elfaddoui_app/features/catalog/presentation/screens/category_products_screen.dart';
 import 'package:elfaddoui_app/features/catalog/presentation/screens/product_details_screen.dart';
@@ -158,7 +159,10 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
       context,
       MaterialPageRoute(
         builder: (_) =>
-            CategoryProductsScreen(categoryName: t.tr('popular_category')),
+            CategoryProductsScreen(
+              categoryName: t.tr('popular_category'),
+              categoryKey: 'epicerie',
+            ),
       ),
     );
   }
@@ -310,6 +314,8 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
       ),
       body: BlocBuilder<FavoritesCubit, Map<String, FavoriteItem>>(
         builder: (context, favs) {
+          final favCubit = context.read<FavoritesCubit>();
+          final backendDown = favCubit.hasSynced && !favCubit.serverAvailable;
           final all = favs.values.toList();
           final items = _buildView(all);
           final cart = context.watch<CartCubit>().state;
@@ -340,7 +346,17 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                 ),
               ),
               Expanded(
-                child: all.isEmpty
+                child: backendDown
+                    ? _FavoritesBackendUnavailable(
+                        unauthorized: favCubit.unauthorized,
+                        onRetry: () => context.read<FavoritesCubit>().syncFromServer(),
+                        onLogin: () => Navigator.pushNamedAndRemoveUntil(
+                          context,
+                          AppRoutes.signIn,
+                          (_) => false,
+                        ),
+                      )
+                    : all.isEmpty
                     ? _EmptyFavorites(
                         onGoProducts: () => _goProducts(context),
                         onGoCategories: () => _goCategories(context),
@@ -415,10 +431,16 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                                         ),
                                       );
                                     },
-                                    onToggle: () {
+                                    onToggle: () async {
                                       _haptic();
-                                      context.read<FavoritesCubit>().toggle(it);
-                                      _toast(context, t.tr('favorites_updated'));
+                                      final nowFav =
+                                          await context.read<FavoritesCubit>().toggle(it);
+                                      _toast(
+                                        context,
+                                        nowFav
+                                            ? t.tr('favorites_added')
+                                            : t.tr('favorites_removed'),
+                                      );
                                     },
                                     onAddToCart: () => _addToCart(context, it),
                                     onIncCart: () => _incCart(context, it),
@@ -442,6 +464,69 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
             ],
           );
         },
+      ),
+    );
+  }
+}
+
+class _FavoritesBackendUnavailable extends StatelessWidget {
+  final bool unauthorized;
+  final VoidCallback onRetry;
+  final VoidCallback onLogin;
+  const _FavoritesBackendUnavailable({
+    required this.unauthorized,
+    required this.onRetry,
+    required this.onLogin,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context);
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 22),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(
+              Icons.wifi_off_rounded,
+              size: 34,
+              color: AppColors.bordeaux,
+            ),
+            const SizedBox(height: 10),
+            Text(
+              unauthorized
+                  ? 'Session expirée. Reconnectez-vous.'
+                  : t.tr('categories_server_unavailable'),
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: AppColors.text,
+                fontWeight: FontWeight.w800,
+                fontSize: 16,
+              ),
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: unauthorized ? onLogin : onRetry,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.bordeaux,
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                ),
+                child: Text(
+                  unauthorized ? 'Se reconnecter' : t.tr('common_retry'),
+                  style: const TextStyle(fontWeight: FontWeight.w800),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:elfaddoui_app/core/theme/app_colors.dart';
 
 class CheckoutTopStepper extends StatelessWidget {
@@ -66,6 +67,9 @@ class CheckoutField extends StatelessWidget {
   final TextInputType keyboardType;
   final String? Function(String?)? validator;
   final int maxLines;
+  final ValueChanged<String>? onChanged;
+  final String? prefixText;
+  final List<TextInputFormatter>? inputFormatters;
 
   const CheckoutField({
     super.key,
@@ -75,6 +79,9 @@ class CheckoutField extends StatelessWidget {
     this.keyboardType = TextInputType.text,
     this.validator,
     this.maxLines = 1,
+    this.onChanged,
+    this.prefixText,
+    this.inputFormatters,
   });
 
   @override
@@ -98,9 +105,16 @@ class CheckoutField extends StatelessWidget {
             keyboardType: keyboardType,
             validator: validator,
             maxLines: maxLines,
+            onChanged: onChanged,
+            inputFormatters: inputFormatters,
             decoration: InputDecoration(
               hintText: hint,
               hintStyle: const TextStyle(color: AppColors.muted),
+              prefixText: prefixText,
+              prefixStyle: const TextStyle(
+                color: AppColors.text,
+                fontWeight: FontWeight.w700,
+              ),
               filled: true,
               fillColor: AppColors.soft.withValues(alpha: 0.35),
               contentPadding:

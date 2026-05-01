@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:elfaddoui_app/core/network/api_constants.dart';
+import 'package:elfaddoui_app/core/storage/token_storage.dart';
 import 'package:elfaddoui_app/features/home/presentation/cubit/home_state.dart';
 
 class HomeBootstrapData {
@@ -31,9 +32,24 @@ class AiHomeService {
                 headers: {"Content-Type": "application/json"},
                 validateStatus: (code) => code != null && code < 500,
               ),
-            );
+            ) {
+    _dio.interceptors.add(
+      InterceptorsWrapper(
+        onRequest: (options, handler) async {
+          final token = await _tokenStorage.readToken();
+          if (token != null && token.isNotEmpty) {
+            options.headers['Authorization'] = 'Bearer $token';
+          } else {
+            options.headers.remove('Authorization');
+          }
+          handler.next(options);
+        },
+      ),
+    );
+  }
 
   final Dio _dio;
+  final TokenStorage _tokenStorage = TokenStorage();
   static const String _defaultProductImage =
       "https://images.pexels.com/photos/264636/pexels-photo-264636.jpeg?auto=compress&cs=tinysrgb&w=1200&h=900&dpr=2";
   static const String _freshImage =
@@ -79,12 +95,48 @@ class AiHomeService {
 
   Future<Product?> getProductById(String productId) async {
     try {
-      final r = await _dio.get('/api/home/products/$productId');
+      final r = await _dio.get('/api/products/$productId');
       if ((r.statusCode ?? 500) >= 400) return null;
       return _toProduct(_asMap(r.data));
     } catch (_) {
-      return null;
+      try {
+        final r = await _dio.get('/api/home/products/$productId');
+        if ((r.statusCode ?? 500) >= 400) return null;
+        return _toProduct(_asMap(r.data));
+      } catch (_) {
+        return null;
+      }
     }
+  }
+
+  Future<List<Map<String, dynamic>>> getPublicCategories() async {
+    final r = await _dio.get('/api/categories');
+    if ((r.statusCode ?? 500) >= 400) {
+      throw Exception("HTTP ${r.statusCode} on /api/categories");
+    }
+    final data = r.data;
+    if (data is! List) return const [];
+    return data.whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList();
+  }
+
+  Future<Map<String, dynamic>?> getPublicCategoryProducts({
+    required String key,
+    String? query,
+    bool? promoOnly,
+    double? minPrice,
+    double? maxPrice,
+    String? sort,
+  }) async {
+    final qp = <String, dynamic>{};
+    if (query != null && query.trim().isNotEmpty) qp['query'] = query.trim();
+    if (promoOnly != null) qp['promoOnly'] = promoOnly;
+    if (minPrice != null) qp['minPrice'] = minPrice;
+    if (maxPrice != null) qp['maxPrice'] = maxPrice;
+    if (sort != null && sort.trim().isNotEmpty) qp['sort'] = sort.trim();
+
+    final r = await _dio.get('/api/categories/$key/products', queryParameters: qp);
+    if ((r.statusCode ?? 500) >= 400) return null;
+    return _asMap(r.data);
   }
 
   Future<List<Product>> smartSearch(String query, List<Product> catalog) async {
@@ -99,6 +151,149 @@ class AiHomeService {
     }).toList();
 
     return res.take(12).toList();
+  }
+
+  Future<List<Product>> searchPublicProducts({
+    String? query,
+    int page = 0,
+    int size = 30,
+    String? sort,
+  }) async {
+    final qp = <String, dynamic>{
+      'page': page,
+      'size': size,
+    };
+    if (query != null && query.trim().isNotEmpty) qp['query'] = query.trim();
+    if (sort != null && sort.trim().isNotEmpty) qp['sort'] = sort.trim();
+
+    final r = await _dio.get('/api/products', queryParameters: qp);
+    if ((r.statusCode ?? 500) >= 400) {
+      throw Exception("HTTP ${r.statusCode} on /api/products");
+    }
+
+    final map = _asMap(r.data);
+    final content = map['content'];
+    return _toProducts(content);
+  }
+
+  Future<Map<String, dynamic>> searchCatalogProducts({
+    String? query,
+    String? categoryKey,
+    bool? promoOnly,
+    bool? bioOnly,
+    double? minPrice,
+    double? maxPrice,
+    String? sort,
+    int page = 0,
+    int size = 40,
+  }) async {
+    final qp = <String, dynamic>{
+      'page': page,
+      'size': size,
+    };
+    if (query != null && query.trim().isNotEmpty) qp['query'] = query.trim();
+    if (categoryKey != null && categoryKey.trim().isNotEmpty) {
+      qp['categoryKey'] = categoryKey.trim();
+      qp['category'] = categoryKey.trim();
+    }
+    if (promoOnly != null) qp['promoOnly'] = promoOnly;
+    if (bioOnly != null) qp['bioOnly'] = bioOnly;
+    if (minPrice != null) qp['minPrice'] = minPrice;
+    if (maxPrice != null) qp['maxPrice'] = maxPrice;
+    if (sort != null && sort.trim().isNotEmpty) qp['sort'] = sort.trim();
+
+    final candidates = <({String path, Map<String, dynamic> params})>[
+      (path: '/api/products/search', params: qp),
+      (path: '/api/products', params: qp),
+      if (categoryKey != null && categoryKey.trim().isNotEmpty)
+        (
+          path: '/api/categories/${Uri.encodeComponent(categoryKey.trim())}/products',
+          params: {
+            if (query != null && query.trim().isNotEmpty) 'query': query.trim(),
+            if (promoOnly != null) 'promoOnly': promoOnly,
+            if (bioOnly != null) 'bioOnly': bioOnly,
+            if (minPrice != null) 'minPrice': minPrice,
+            if (maxPrice != null) 'maxPrice': maxPrice,
+            if (sort != null && sort.trim().isNotEmpty) 'sort': sort.trim(),
+            'page': page,
+            'size': size,
+          }
+        ),
+    ];
+    for (final candidate in candidates) {
+      try {
+        final r = await _dio.get(candidate.path, queryParameters: candidate.params);
+        final status = r.statusCode ?? 500;
+        if (status == 404 || status == 405) {
+          continue;
+        }
+        if (status >= 400) {
+          continue;
+        }
+
+        final map = _asMap(r.data);
+        final content = map['content'];
+        final directList = map['products'] ?? map['items'] ?? map['data'];
+        final source = content is List ? content : (directList is List ? directList : const []);
+        final products = source
+            .whereType<Map>()
+            .map((e) => Map<String, dynamic>.from(e))
+            .toList(growable: false);
+
+        if (products.isEmpty && r.data is List) {
+          final listProducts = (r.data as List)
+              .whereType<Map>()
+              .map((e) => Map<String, dynamic>.from(e))
+              .toList(growable: false);
+          final totalFromList = listProducts.length;
+          return {
+            'products': listProducts,
+            'totalResults': totalFromList,
+            'page': page,
+            'size': size,
+            'hasNext': false,
+          };
+        }
+
+        final total = (map['totalElements'] is num)
+            ? (map['totalElements'] as num).toInt()
+            : (map['totalResults'] is num)
+                ? (map['totalResults'] as num).toInt()
+                : (map['count'] is num)
+                    ? (map['count'] as num).toInt()
+                : products.length;
+        final currentPage = (map['number'] is num)
+            ? (map['number'] as num).toInt()
+            : page;
+        final pageSize = (map['size'] is num)
+            ? (map['size'] as num).toInt()
+            : size;
+        final hasNext = map['hasNext'] == true
+            ? true
+            : ((currentPage + 1) * pageSize) < total;
+
+        return {
+          'products': products,
+          'totalResults': total,
+          'page': currentPage,
+          'size': pageSize,
+          'hasNext': hasNext,
+        };
+      } on DioException catch (e) {
+        final status = e.response?.statusCode ?? 500;
+        if (status == 404 || status == 405) {
+          continue;
+        }
+        continue;
+      }
+    }
+    return {
+      'products': const <Map<String, dynamic>>[],
+      'totalResults': 0,
+      'page': page,
+      'size': size,
+      'hasNext': false,
+    };
   }
 
   Future<String> recipeIdea(String ingredientsText) async {
@@ -148,11 +343,11 @@ class AiHomeService {
       id: (j['id'] ?? '').toString(),
       name: (j['name'] ?? '').toString(),
       description: j['description']?.toString(),
-      category: j['category']?.toString(),
+      category: (j['displayCategoryName'] ?? j['categoryName'] ?? j['category'])?.toString(),
       image: _resolveStoreImage(
-        imageValue: j['image'],
+        imageValue: (j['imageUrl'] ?? j['image']),
         name: (j['name'] ?? '').toString(),
-        category: j['category']?.toString(),
+        category: (j['displayCategoryName'] ?? j['categoryName'] ?? j['category'])?.toString(),
         id: (j['id'] ?? '').toString(),
       ),
       price: toDouble(j['price']),
@@ -191,7 +386,7 @@ class AiHomeService {
   }) {
     final raw = (imageValue ?? '').toString().trim();
     if (_isValidImageUrl(raw)) return raw;
-    return _pickStoreImage(name: name, category: category, id: id);
+    return '';
   }
 
   bool _isValidImageUrl(String url) {

@@ -12,44 +12,15 @@ class AuthRemoteDataSource {
   AuthRemoteDataSource(this.dio);
 
   Future<AuthResponseModel> register(RegisterRequestModel req) async {
-    final candidates = <String>[
+    final r = await dio.post(
       "${ApiConstants.auth}/register",
-      "${ApiConstants.auth}/signup",
-      "${ApiConstants.auth}/sign-up",
-      "${ApiConstants.users}/register",
-      "/auth/register",
-      "/auth/signup",
-      "/auth/sign-up",
-      "/api/v1/auth/register",
-      "/api/v1/auth/signup",
-      "/api/v1/auth/sign-up",
-    ];
-
-    Response<dynamic>? last;
-    for (final path in candidates) {
-      final payload =
-          path.startsWith("/auth/") ? req.toAuthJson() : req.toLegacyJson();
-      final r = await dio.post(path, data: payload);
-      final status = r.statusCode ?? 0;
-      if (status < 400) {
-        return AuthResponseModel.fromJson(_asMap(r.data, "register"));
-      }
-      last = r;
-      if (status != 404) {
-        _throwIfHttpError(r, "register");
-      }
-    }
-
-    if (last != null) {
-      throw DioException(
-        requestOptions: last.requestOptions,
-        response: last,
-        type: DioExceptionType.badResponse,
-        message:
-            "Aucune route d'inscription trouvée (testées: ${candidates.join(", ")})",
-      );
-    }
-    throw const FormatException("Réponse invalide pour register.");
+      data: req.toAuthJson(),
+    );
+    _throwIfHttpError(r, "register");
+    return AuthResponseModel.fromJson(
+      _asMap(r.data, "register"),
+      allowMessageFallback: true,
+    );
   }
 
   Future<AuthResponseModel> login(LoginRequestModel req) async {
@@ -60,10 +31,14 @@ class AuthRemoteDataSource {
 
   // backend returns String token (testing)
   Future<String> forgotPassword(ForgotPasswordRequestModel req) async {
-    final r = await dio.post("${ApiConstants.auth}/forgot-password",
-        data: req.toJson());
+    final r = await dio.post(
+      "${ApiConstants.auth}/forgot-password",
+      data: req.toJson(),
+      // Some backends return raw token text, not strict JSON.
+      options: Options(responseType: ResponseType.plain),
+    );
     _throwIfHttpError(r, "forgot-password");
-    return (r.data ?? "").toString();
+    return _extractForgotToken(r.data);
   }
 
   Future<void> resetPassword(ResetPasswordRequestModel req) async {
@@ -95,5 +70,44 @@ class AuthRemoteDataSource {
       if (decoded is Map) return Map<String, dynamic>.from(decoded);
     }
     throw FormatException("Réponse invalide pour $route.");
+  }
+
+  String _extractForgotToken(dynamic data) {
+    if (data == null) return "";
+
+    if (data is String) {
+      final trimmed = data.trim();
+      if (trimmed.isEmpty) return "";
+
+      // Case 1: raw token text
+      if (!trimmed.startsWith("{") && !trimmed.startsWith("[")) {
+        return trimmed.replaceAll('"', '');
+      }
+
+      // Case 2: JSON string body
+      final decoded = jsonDecode(trimmed);
+      if (decoded is Map<String, dynamic>) {
+        return _tokenFromMap(decoded);
+      }
+      if (decoded is Map) {
+        return _tokenFromMap(Map<String, dynamic>.from(decoded));
+      }
+      return trimmed.replaceAll('"', '');
+    }
+
+    if (data is Map<String, dynamic>) return _tokenFromMap(data);
+    if (data is Map) return _tokenFromMap(Map<String, dynamic>.from(data));
+
+    return data.toString();
+  }
+
+  String _tokenFromMap(Map<String, dynamic> map) {
+    final v1 = map["resetToken"];
+    if (v1 is String && v1.isNotEmpty) return v1;
+    final v2 = map["token"];
+    if (v2 is String && v2.isNotEmpty) return v2;
+    final v3 = map["message"];
+    if (v3 is String && v3.isNotEmpty) return v3;
+    return map.toString();
   }
 }

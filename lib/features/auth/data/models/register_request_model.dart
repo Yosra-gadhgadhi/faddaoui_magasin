@@ -16,7 +16,7 @@ class RegisterRequestModel {
       };
 
   Map<String, dynamic> toAuthJson() => {
-        "name": fullName,
+        "fullName": fullName,
         "email": email,
         "password": password,
       };

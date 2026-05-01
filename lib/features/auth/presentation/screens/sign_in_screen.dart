@@ -3,11 +3,14 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:local_auth/local_auth.dart';
 
 import 'package:elfaddoui_app/core/l10n/tr3.dart';
+import 'package:elfaddoui_app/core/notifications/push_registration_service.dart';
 import 'package:elfaddoui_app/core/storage/token_storage.dart';
 import 'package:elfaddoui_app/core/theme/app_colors.dart';
 import 'package:elfaddoui_app/core/utils/validators.dart';
 import 'package:elfaddoui_app/core/widgets/app_text_field.dart';
 import 'package:elfaddoui_app/core/widgets/primary_button.dart';
+import 'package:elfaddoui_app/features/cart/presentation/cubit/cart_cubit.dart';
+import 'package:elfaddoui_app/features/favorites/presentation/cubit/favorites_cubit.dart';
 
 import '../../../../app/routes.dart';
 import '../state/auth_cubit.dart';
@@ -22,7 +25,6 @@ class SignInScreen extends StatefulWidget {
 }
 
 class _SignInScreenState extends State<SignInScreen> {
-  static const bool _staticAuthMode = true;
   final _email = TextEditingController();
   final _password = TextEditingController();
   final _auth = LocalAuthentication();
@@ -145,10 +147,8 @@ class _SignInScreenState extends State<SignInScreen> {
           en: 'Confirm your identity to sign in',
           ar: 'أكد هويتك لتسجيل الدخول',
         ),
-        options: const AuthenticationOptions(
-          stickyAuth: true,
-          biometricOnly: false,
-        ),
+        biometricOnly: false,
+        persistAcrossBackgrounding: true,
       );
 
       if (!ok || !mounted) return;
@@ -156,13 +156,6 @@ class _SignInScreenState extends State<SignInScreen> {
       final savedEmail = await _tokenStorage.readBiometricEmail();
       final savedPassword = await _tokenStorage.readBiometricPassword();
       if ((savedEmail ?? '').isEmpty || (savedPassword ?? '').isEmpty) return;
-
-      if (_staticAuthMode) {
-        await _tokenStorage.saveToken('static-local-session');
-        if (!mounted) return;
-        Navigator.pushNamedAndRemoveUntil(context, AppRoutes.main, (_) => false);
-        return;
-      }
 
       context.read<AuthCubit>().signIn(savedEmail!, savedPassword!);
     } catch (_) {
@@ -192,30 +185,38 @@ class _SignInScreenState extends State<SignInScreen> {
     });
 
     if (!_emailError && !_passError) {
-      if (_staticAuthMode) {
-        _tokenStorage.saveToken('static-local-session');
-        _saveBiometricForNextLogin();
-        Navigator.pushNamedAndRemoveUntil(context, AppRoutes.main, (_) => false);
-        return;
-      }
       context.read<AuthCubit>().signIn(email, password);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return BlocListener<AuthCubit, AuthState>(
-      listener: (context, state) {
-        if (state.error != null && state.error!.isNotEmpty) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(state.error!)),
-          );
-        }
-        if (state.token != null && state.token!.isNotEmpty) {
-          _saveBiometricForNextLogin();
-          Navigator.pushNamedAndRemoveUntil(context, AppRoutes.main, (_) => false);
-        }
-      },
+    return MultiBlocListener(
+      listeners: [
+        BlocListener<AuthCubit, AuthState>(
+          listenWhen: (previous, current) => previous.error != current.error,
+          listener: (context, state) {
+            if (state.error != null && state.error!.isNotEmpty) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text(state.error!)),
+              );
+            }
+          },
+        ),
+        BlocListener<AuthCubit, AuthState>(
+          listenWhen: (previous, current) =>
+              previous.token != current.token &&
+              current.token != null &&
+              current.token!.isNotEmpty,
+          listener: (context, state) {
+            context.read<CartCubit>().syncFromServer();
+            context.read<FavoritesCubit>().syncFromServer();
+            context.read<PushRegistrationService>().initAndRegister();
+            _saveBiometricForNextLogin();
+            Navigator.pushNamedAndRemoveUntil(context, AppRoutes.main, (_) => false);
+          },
+        ),
+      ],
       child: Scaffold(
         backgroundColor: Colors.white,
         body: SafeArea(

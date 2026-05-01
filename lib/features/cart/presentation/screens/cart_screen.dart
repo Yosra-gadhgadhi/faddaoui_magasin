@@ -4,11 +4,13 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'package:elfaddoui_app/core/l10n/app_localizations.dart';
 import 'package:elfaddoui_app/core/l10n/product_text_localizer.dart';
+import 'package:elfaddoui_app/core/network/api_constants.dart';
 import 'package:elfaddoui_app/core/theme/app_colors.dart';
 import 'package:elfaddoui_app/core/theme/app_spacing.dart';
 import 'package:elfaddoui_app/core/theme/app_text_styles.dart';
 import 'package:elfaddoui_app/core/widgets/empty_state_panel.dart';
 import 'package:elfaddoui_app/core/widgets/app_snackbar.dart';
+import 'package:elfaddoui_app/app/routes.dart';
 import 'package:elfaddoui_app/features/cart/presentation/cubit/cart_cubit.dart';
 
 import 'package:elfaddoui_app/features/favorites/presentation/cubit/favorites_cubit.dart';
@@ -175,7 +177,10 @@ class _CartScreenState extends State<CartScreen> {
       context,
       MaterialPageRoute(
         builder: (_) =>
-            CategoryProductsScreen(categoryName: t.tr('popular_category')),
+            CategoryProductsScreen(
+              categoryName: t.tr('popular_category'),
+              categoryKey: 'epicerie',
+            ),
       ),
     );
   }
@@ -290,12 +295,24 @@ class _CartScreenState extends State<CartScreen> {
       ),
       body: BlocBuilder<CartCubit, Map<String, CartLine>>(
         builder: (context, cart) {
+          final cartCubit = context.read<CartCubit>();
+          final backendDown = cartCubit.hasSynced && !cartCubit.serverAvailable;
           final items = _itemsFromCart(context, cart);
           return Column(
             children: [
               const _InfoBar(),
               Expanded(
-                child: items.isEmpty
+                child: backendDown
+                    ? _CartBackendUnavailable(
+                        unauthorized: cartCubit.unauthorized,
+                        onRetry: () => context.read<CartCubit>().syncFromServer(),
+                        onLogin: () => Navigator.pushNamedAndRemoveUntil(
+                          context,
+                          AppRoutes.signIn,
+                          (_) => false,
+                        ),
+                      )
+                    : items.isEmpty
                     ? _EmptyCartPremium(
                         onGoProducts: _goToProducts,
                         onGoCategories: _goToCategories,
@@ -336,20 +353,16 @@ class _CartScreenState extends State<CartScreen> {
                               context.read<CartCubit>().remove(it.id);
                               _toastPremium(t.tr('cart_product_removed'));
                             },
-                            onToggleFavorite: () {
+                            onToggleFavorite: () async {
                               _haptic();
-                              context.read<FavoritesCubit>().toggle(
-                                    FavoriteItem(
-                                      id: it.id,
-                                      name: it.name,
-                                      image: it.image,
-                                      price: it.price,
-                                    ),
-                                  );
-
-                              final isFav = context
-                                  .read<FavoritesCubit>()
-                                  .isFavorite(it.id);
+                              final isFav = await context.read<FavoritesCubit>().toggle(
+                                FavoriteItem(
+                                  id: it.id,
+                                  name: it.name,
+                                  image: it.image,
+                                  price: it.price,
+                                ),
+                              );
                               _toastPremium(
                                 isFav
                                     ? t.tr('favorites_added')
@@ -369,6 +382,71 @@ class _CartScreenState extends State<CartScreen> {
 }
 
 /* ================= UI ================= */
+
+class _CartBackendUnavailable extends StatelessWidget {
+  final bool unauthorized;
+  final VoidCallback onRetry;
+  final VoidCallback onLogin;
+  const _CartBackendUnavailable({
+    required this.unauthorized,
+    required this.onRetry,
+    required this.onLogin,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context);
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 22),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(
+              Icons.wifi_off_rounded,
+              size: 34,
+              color: AppColors.bordeaux,
+            ),
+            const SizedBox(height: 10),
+            Text(
+              unauthorized
+                  ? 'Session expirée. Reconnectez-vous.'
+                  : t.tr('categories_server_unavailable'),
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: AppColors.text,
+                fontWeight: FontWeight.w800,
+                fontSize: 16,
+              ),
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: unauthorized ? onLogin : onRetry,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.bordeaux,
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                ),
+                child: Text(
+                  unauthorized ? 'Se reconnecter' : t.tr('common_retry'),
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
 
 class _InfoBar extends StatelessWidget {
   const _InfoBar();
@@ -532,7 +610,7 @@ class _CartCard extends StatelessWidget {
               ClipRRect(
                 borderRadius: BorderRadius.circular(14),
                 child: Image.network(
-                  item.image,
+                  ApiConstants.resolveAssetUrl(item.image),
                   height: 78,
                   width: 78,
                   fit: BoxFit.cover,

@@ -204,14 +204,14 @@ class _SearchScreenState extends State<SearchScreen> {
                           icon: Icons.search_off_rounded,
                           title: tr3(
                             context,
-                            fr: 'Aucun resultat',
+                            fr: 'Aucun résultat',
                             en: 'No result',
                             ar: 'لا توجد نتائج',
                           ),
                           subtitle: _error ??
                               tr3(
                                 context,
-                                fr: 'Aucun produit trouve pour cette recherche.',
+                                fr: 'Aucun produit trouvé pour cette recherche.',
                                 en: 'No product found for this query.',
                                 ar: 'لا يوجد منتج مطابق لهذا البحث.',
                               ),

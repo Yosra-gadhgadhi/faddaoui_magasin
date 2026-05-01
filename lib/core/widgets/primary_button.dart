@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
+import '../theme/app_spacing.dart';
 import 'loading_indicator.dart';
 
 class PrimaryButton extends StatelessWidget {
@@ -13,8 +14,8 @@ class PrimaryButton extends StatelessWidget {
     super.key,
     required this.text,
     this.onPressed,
-    this.height = 50, // ✅ أنحف
-    this.radius = 16,
+    this.height = AppSize.buttonHeight,
+    this.radius = AppRadius.md,
     this.isLoading = false,
   });
 
@@ -36,12 +37,16 @@ class PrimaryButton extends StatelessWidget {
         onPressed: isLoading ? null : onPressed,
         child: isLoading
             ? const AppButtonLoadingIndicator(size: 20, strokeWidth: 2)
-            : Text(
-                text,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w800,
+            : FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  text,
+                  maxLines: 1,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
               ),
       ),

@@ -14,7 +14,7 @@ String parseApiError(Object e) {
     if (e.type == DioExceptionType.connectionError ||
         e.type == DioExceptionType.connectionTimeout ||
         e.type == DioExceptionType.receiveTimeout) {
-      return "Erreur réseau (serveur non accessible). Vérifie baseUrl + ATS + serveur.";
+      return "Erreur réseau: serveur non accessible. Vérifie que l'API tourne sur ${e.requestOptions.baseUrl}.";
     }
 
     return e.message ?? "Erreur réseau";

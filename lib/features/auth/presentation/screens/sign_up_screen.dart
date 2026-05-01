@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:dio/dio.dart';
 
 import 'package:elfaddoui_app/core/l10n/tr3.dart';
+import 'package:elfaddoui_app/core/network/api_constants.dart';
 import 'package:elfaddoui_app/core/theme/app_colors.dart';
 import 'package:elfaddoui_app/core/widgets/app_text_field.dart';
 import 'package:elfaddoui_app/core/widgets/primary_button.dart';
@@ -19,16 +22,29 @@ class SignUpScreen extends StatefulWidget {
 }
 
 class _SignUpScreenState extends State<SignUpScreen> {
+  static const _tnDialCode = '+216';
   final _name = TextEditingController();
   final _email = TextEditingController();
+  final _phone = TextEditingController();
+  final _address = TextEditingController();
   final _password = TextEditingController();
   final _confirmPassword = TextEditingController();
+  final Dio _dio = Dio(
+    BaseOptions(
+      baseUrl: ApiConstants.baseUrl,
+      connectTimeout: const Duration(seconds: 15),
+      receiveTimeout: const Duration(seconds: 15),
+      headers: {"Content-Type": "application/json"},
+      validateStatus: (code) => code != null && code < 500,
+    ),
+  );
 
   bool _hidePass = true;
   bool _hideConfirm = true;
 
   bool _nameError = false;
   bool _emailError = false;
+  bool _phoneError = false;
   bool _passError = false;
   bool _confirmError = false;
 
@@ -36,9 +52,66 @@ class _SignUpScreenState extends State<SignUpScreen> {
   void dispose() {
     _name.dispose();
     _email.dispose();
+    _phone.dispose();
+    _address.dispose();
     _password.dispose();
     _confirmPassword.dispose();
     super.dispose();
+  }
+
+  Future<void> _saveProfileExtrasAfterRegister(String token) async {
+    final n = _name.text.trim();
+    final e = _email.text.trim();
+    final phone = _toApiPhone(_phone.text);
+    final address = _address.text.trim();
+    try {
+      await _dio.put(
+        '/api/profile/me',
+        data: {
+          "fullName": n,
+          "email": e,
+          "phone": phone,
+          "avatarUrl": "",
+          "address": address,
+        },
+        options: Options(
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": "Bearer $token",
+          },
+        ),
+      );
+    } catch (_) {
+      // Register succeeded; profile extras are best effort.
+    }
+  }
+
+  String _toApiPhone(String input) {
+    final digits = input.replaceAll(RegExp(r'\D'), '');
+    if (digits.isEmpty) {
+      return "";
+    }
+    return '$_tnDialCode $digits';
+  }
+
+  String _formatLocalPhone(String input) {
+    final digits = input.replaceAll(RegExp(r'\D'), '');
+    if (digits.isEmpty) return '';
+    final clipped = digits.length > 8 ? digits.substring(0, 8) : digits;
+    if (clipped.length <= 2) return clipped;
+    if (clipped.length <= 5) {
+      return '${clipped.substring(0, 2)} ${clipped.substring(2)}';
+    }
+    return '${clipped.substring(0, 2)} ${clipped.substring(2, 5)} ${clipped.substring(5)}';
+  }
+
+  void _onPhoneChanged(String value) {
+    final formatted = _formatLocalPhone(value);
+    if (formatted == value) return;
+    _phone.value = TextEditingValue(
+      text: formatted,
+      selection: TextSelection.collapsed(offset: formatted.length),
+    );
   }
 
   int _passwordScore(String value) {
@@ -73,17 +146,24 @@ class _SignUpScreenState extends State<SignUpScreen> {
   void _register() {
     final n = _name.text.trim();
     final e = _email.text.trim();
+    final phone = _phone.text.trim();
     final p = _password.text.trim();
     final c = _confirmPassword.text.trim();
+    final phoneDigits = phone.replaceAll(RegExp(r'\D'), '');
 
     setState(() {
       _nameError = n.length < 3;
       _emailError = e.isEmpty || !e.contains('@');
+      _phoneError = phone.isNotEmpty && phoneDigits.length != 8;
       _passError = p.length < 8;
       _confirmError = c != p;
     });
 
-    if (!_nameError && !_emailError && !_passError && !_confirmError) {
+    if (!_nameError &&
+        !_emailError &&
+        !_phoneError &&
+        !_passError &&
+        !_confirmError) {
       context.read<AuthCubit>().signUp(n, e, p);
     }
   }
@@ -94,31 +174,43 @@ class _SignUpScreenState extends State<SignUpScreen> {
     final strength = _strengthLabel(context, score);
     final strengthColor = _strengthColor(score);
 
-    return BlocListener<AuthCubit, AuthState>(
-      listener: (context, state) {
-        if (state.error != null && state.error!.isNotEmpty) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(state.error!)),
-          );
-        }
-
-        if (state.token != null && state.token!.isNotEmpty) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              duration: const Duration(milliseconds: 1200),
-              content: Text(
-                tr3(
-                  context,
-                  fr: 'Compte créé, connectez-vous.',
-                  en: 'Account created, please sign in.',
-                  ar: 'تم إنشاء الحساب، يرجى تسجيل الدخول.',
+    return MultiBlocListener(
+      listeners: [
+        BlocListener<AuthCubit, AuthState>(
+          listenWhen: (previous, current) => previous.error != current.error,
+          listener: (context, state) {
+            if (state.error != null && state.error!.isNotEmpty) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text(state.error!)),
+              );
+            }
+          },
+        ),
+        BlocListener<AuthCubit, AuthState>(
+          listenWhen: (previous, current) =>
+              previous.token != current.token &&
+              current.token != null &&
+              current.token!.isNotEmpty,
+          listener: (context, state) async {
+            await _saveProfileExtrasAfterRegister(state.token!);
+            if (!context.mounted) return;
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                duration: const Duration(milliseconds: 1200),
+                content: Text(
+                  tr3(
+                    context,
+                    fr: 'Compte créé, connectez-vous.',
+                    en: 'Account created, please sign in.',
+                    ar: 'تم إنشاء الحساب، يرجى تسجيل الدخول.',
+                  ),
                 ),
               ),
-            ),
-          );
-          Navigator.pushNamedAndRemoveUntil(context, AppRoutes.signIn, (_) => false);
-        }
-      },
+            );
+            Navigator.pushNamedAndRemoveUntil(context, AppRoutes.signIn, (_) => false);
+          },
+        ),
+      ],
       child: Scaffold(
         backgroundColor: Colors.white,
         body: SafeArea(
@@ -205,6 +297,44 @@ class _SignUpScreenState extends State<SignUpScreen> {
                           ),
                         ),
                       ),
+                    const SizedBox(height: 12),
+                    AppTextField(
+                      label: tr3(context, fr: 'Téléphone (optionnel)', en: 'Phone (optional)', ar: 'الهاتف (اختياري)'),
+                      hint: tr3(context, fr: 'XX XXX XXX', en: 'XX XXX XXX', ar: 'XX XXX XXX'),
+                      controller: _phone,
+                      onChanged: _onPhoneChanged,
+                      keyboardType: TextInputType.phone,
+                      prefixText: '$_tnDialCode ',
+                      inputFormatters: [
+                        FilteringTextInputFormatter.allow(RegExp(r'[0-9\s]')),
+                        LengthLimitingTextInputFormatter(10),
+                      ],
+                      prefixIcon: const Icon(Icons.phone_outlined, color: AppColors.muted),
+                    ),
+                    if (_phoneError)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 6),
+                        child: Text(
+                          tr3(
+                            context,
+                            fr: 'Téléphone invalide',
+                            en: 'Invalid phone number',
+                            ar: 'رقم هاتف غير صالح',
+                          ),
+                          style: const TextStyle(
+                            color: AppColors.bordeaux,
+                            fontWeight: FontWeight.w800,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                    const SizedBox(height: 12),
+                    AppTextField(
+                      label: tr3(context, fr: 'Adresse (optionnel)', en: 'Address (optional)', ar: 'العنوان (اختياري)'),
+                      hint: tr3(context, fr: 'Entrez votre adresse', en: 'Enter your address', ar: 'أدخل عنوانك'),
+                      controller: _address,
+                      prefixIcon: const Icon(Icons.location_on_outlined, color: AppColors.muted),
+                    ),
                     const SizedBox(height: 12),
                     AppTextField(
                       label: tr3(context, fr: 'Mot de passe', en: 'Password', ar: 'كلمة المرور'),

@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "332283503136",
+    "project_id": "navin-supermarkett",
+    "storage_bucket": "navin-supermarkett.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:332283503136:android:e9ec080e1f9f48fd6f1245",
+        "android_client_info": {
+          "package_name": "com.example.exempl_pr"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDfJINkkKJmx1zA862RwiJcP9ZVJ7LfGU4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -436,7 +436,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
         if (s.resetToken != null && s.emailForReset != null) {
           Navigator.pushNamed(
             context,
-            AppRoutes.resetPassword,
+            AppRoutes.otp,
             arguments: {
               "email": s.emailForReset!,
               "resetToken": s.resetToken!,

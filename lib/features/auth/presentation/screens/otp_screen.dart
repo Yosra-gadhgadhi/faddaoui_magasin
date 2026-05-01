@@ -46,14 +46,18 @@ class _OtpScreenState extends State<OtpScreen> {
     }
   }
 
-  void _verify(String email) {
+  void _verify(String email, String resetToken) {
     setState(() => otpError = _otp.length != 6);
 
     if (!otpError) {
       Navigator.pushReplacementNamed(
         context,
         AppRoutes.resetPassword,
-        arguments: {'email': email, 'otp': _otp},
+        arguments: {
+          'email': email,
+          'otp': _otp,
+          'resetToken': resetToken,
+        },
       );
     }
   }
@@ -72,6 +76,7 @@ class _OtpScreenState extends State<OtpScreen> {
   Widget build(BuildContext context) {
     final args = (ModalRoute.of(context)?.settings.arguments as Map?) ?? {};
     final email = (args['email'] ?? '') as String;
+    final resetToken = (args['resetToken'] ?? '') as String;
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -209,7 +214,7 @@ class _OtpScreenState extends State<OtpScreen> {
 
                                 PrimaryButton(
                                   text: tr3(context, fr: "Vérifier", en: "Verify", ar: "تحقق"),
-                                  onPressed: () => _verify(email),
+                                  onPressed: () => _verify(email, resetToken),
                                   height: 48,
                                   radius: 16,
                                 ),

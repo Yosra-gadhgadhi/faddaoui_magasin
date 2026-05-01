@@ -1,4 +1,4 @@
-import 'package:elfaddoui_app/features/checkout/domain/entities/heckout_data.dart';
+import 'package:elfaddoui_app/features/checkout/domain/entities/checkout_data.dart';
 import 'package:elfaddoui_app/features/checkout/domain/widgets/checkout_widgets.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';

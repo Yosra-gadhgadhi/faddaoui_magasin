@@ -1,12 +1,14 @@
-import 'package:elfaddoui_app/features/checkout/domain/entities/heckout_data.dart';
+import 'package:elfaddoui_app/features/checkout/domain/entities/checkout_data.dart';
 import 'package:elfaddoui_app/features/checkout/domain/widgets/checkout_widgets.dart';
 import 'package:elfaddoui_app/core/network/api_constants.dart';
 import 'package:elfaddoui_app/core/storage/token_storage.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:elfaddoui_app/core/theme/app_colors.dart';
 import 'package:elfaddoui_app/core/l10n/tr3.dart';
 import 'package:elfaddoui_app/app/routes.dart';
+import 'package:elfaddoui_app/features/cart/presentation/cubit/cart_cubit.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'order_success_screen.dart';
@@ -28,6 +30,7 @@ class CheckoutStep3Payment extends StatefulWidget {
 class _CheckoutStep3PaymentState extends State<CheckoutStep3Payment> {
   bool accept = false;
   bool _submitting = false;
+  double? _serverSubtotal;
   final _tokenStorage = TokenStorage();
   final Dio _dio = Dio(
     BaseOptions(
@@ -39,6 +42,12 @@ class _CheckoutStep3PaymentState extends State<CheckoutStep3Payment> {
     ),
   );
 
+  @override
+  void initState() {
+    super.initState();
+    _refreshServerSubtotal();
+  }
+
   Future<Options> _authOptions() async {
     final token = await _tokenStorage.readToken();
     return Options(
@@ -49,7 +58,7 @@ class _CheckoutStep3PaymentState extends State<CheckoutStep3Payment> {
     );
   }
 
-  Map<String, dynamic> _buildOrderPayload(CheckoutData data) {
+  Map<String, dynamic> _buildOrderPayload(CheckoutData data, {required double total}) {
     final isOnline = data.paymentMethod == "online";
     return {
       "customer": {
@@ -76,16 +85,35 @@ class _CheckoutStep3PaymentState extends State<CheckoutStep3Payment> {
         "slot": data.deliverySlot,
         "scheduledTime": data.scheduledTime,
       },
-      "total": widget.total,
+      "total": total,
     };
   }
 
-  Future<(bool, String?)> _startOnlinePayment(CheckoutData data) async {
+  Future<double?> _fetchServerCartSubtotal() async {
+    try {
+      final r = await _dio.get('/api/cart', options: await _authOptions());
+      if ((r.statusCode ?? 500) >= 400 || r.data is! Map) return null;
+      final map = Map<String, dynamic>.from(r.data as Map);
+      final raw = map['subtotal'];
+      if (raw is num) return raw.toDouble();
+      return double.tryParse('$raw');
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<void> _refreshServerSubtotal() async {
+    final subtotal = await _fetchServerCartSubtotal();
+    if (!mounted || subtotal == null) return;
+    setState(() => _serverSubtotal = subtotal);
+  }
+
+  Future<(bool, String?)> _startOnlinePayment(CheckoutData data, {required double amount}) async {
     final options = await _authOptions();
     final payload = {
-      "amount": widget.total,
+      "amount": amount,
       "currency": "TND",
-      "orderPreview": _buildOrderPayload(data),
+      "orderPreview": _buildOrderPayload(data, total: amount),
       "providerHint": "auto",
     };
     const candidates = [
@@ -153,14 +181,18 @@ class _CheckoutStep3PaymentState extends State<CheckoutStep3Payment> {
       final map = Map<String, dynamic>.from(body);
       final message = map["message"] ?? map["error"] ?? map["detail"];
       if (message != null && '$message'.trim().isNotEmpty) {
-        return '$message';
+        final text = '$message';
+        if (text.toLowerCase().contains('total mismatch')) {
+          return "Le total du panier a changé. Vérifiez le panier puis réessayez.";
+        }
+        return text;
       }
     }
     return null;
   }
 
-  Future<(int, String?, String?)> _createOrderOnBackend(CheckoutData data) async {
-    final payload = _buildOrderPayload(data);
+  Future<(int, String?, String?)> _createOrderOnBackend(CheckoutData data, {required double total}) async {
+    final payload = _buildOrderPayload(data, total: total);
     final options = await _authOptions();
     final candidates = const ['/api/orders', '/api/orders/checkout', '/api/checkout'];
 
@@ -215,8 +247,17 @@ class _CheckoutStep3PaymentState extends State<CheckoutStep3Payment> {
 
     setState(() => _submitting = true);
     try {
+      final latestSubtotal = await _fetchServerCartSubtotal();
+      final effectiveTotal = latestSubtotal ?? _serverSubtotal ?? widget.total;
+      if (latestSubtotal != null && mounted) {
+        setState(() => _serverSubtotal = latestSubtotal);
+      }
+
       if (widget.data.paymentMethod == "online") {
-        final (ok, message) = await _startOnlinePayment(widget.data);
+        final (ok, message) = await _startOnlinePayment(
+          widget.data,
+          amount: effectiveTotal,
+        );
         if (!mounted) return;
         if (!ok) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -236,7 +277,7 @@ class _CheckoutStep3PaymentState extends State<CheckoutStep3Payment> {
       }
 
       final (status, backendOrderId, backendMessage) =
-          await _createOrderOnBackend(widget.data);
+          await _createOrderOnBackend(widget.data, total: effectiveTotal);
 
       if (!mounted) return;
       if (status == 401 || status == 403) {
@@ -246,6 +287,11 @@ class _CheckoutStep3PaymentState extends State<CheckoutStep3Payment> {
         return;
       }
       if (status < 200 || status >= 300) {
+        if ((backendMessage ?? '').toLowerCase().contains('total du panier a changé') ||
+            (backendMessage ?? '').toLowerCase().contains('total mismatch')) {
+          await _refreshServerSubtotal();
+          await context.read<CartCubit>().syncFromServer();
+        }
         final failMessage = (backendMessage != null && backendMessage.trim().isNotEmpty)
             ? backendMessage
             : tr3(
@@ -280,14 +326,17 @@ class _CheckoutStep3PaymentState extends State<CheckoutStep3Payment> {
 
       await _tokenStorage.saveLastOrderId(orderId);
 
-      // Best effort local cart clear after successful checkout.
+      // Clear backend cart and keep CartCubit state in sync for home/cart UI.
       await _dio.delete('/api/cart', options: await _authOptions());
+      if (mounted) {
+        await context.read<CartCubit>().syncFromServer();
+      }
 
       if (!mounted) return;
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
-          builder: (_) => OrderSuccessScreen(orderId: orderId, total: widget.total),
+          builder: (_) => OrderSuccessScreen(orderId: orderId, total: effectiveTotal),
         ),
       );
     } finally {
@@ -309,6 +358,7 @@ class _CheckoutStep3PaymentState extends State<CheckoutStep3Payment> {
   @override
   Widget build(BuildContext context) {
     final data = widget.data;
+    final displayedTotal = _serverSubtotal ?? widget.total;
 
     return Scaffold(
       backgroundColor: Theme.of(context).colorScheme.surface,
@@ -426,7 +476,6 @@ class _CheckoutStep3PaymentState extends State<CheckoutStep3Payment> {
                   },
                 ),
 
-                // ✅ يظهر فقط في scheduled
                 if (data.deliverySlot == "scheduled") ...[
                   const SizedBox(height: 10),
                   Align(
@@ -465,7 +514,7 @@ class _CheckoutStep3PaymentState extends State<CheckoutStep3Payment> {
                   ),
                 ),
                 Text(
-                  "${widget.total.toStringAsFixed(2)} DT",
+                  "${displayedTotal.toStringAsFixed(2)} DT",
                   style: const TextStyle(
                     fontWeight: FontWeight.w900,
                     color: AppColors.bordeaux,

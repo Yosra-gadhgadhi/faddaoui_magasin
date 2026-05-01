@@ -14,7 +14,7 @@ class AppTheme {
           foregroundColor: AppColors.bordeauxDark,
           elevation: 0,
           centerTitle: true,
-          toolbarHeight: 76,
+          toolbarHeight: 78,
           titleTextStyle: TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.w800,
@@ -97,9 +97,9 @@ class AppTheme {
             side: BorderSide(color: AppColors.border.withValues(alpha: 0.9)),
             textStyle: const TextStyle(
               fontWeight: FontWeight.w800,
-              fontSize: 13.5,
+              fontSize: 14,
             ),
-            minimumSize: const Size.fromHeight(46),
+            minimumSize: const Size.fromHeight(AppSize.buttonHeight),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(AppRadius.md),
             ),
@@ -149,7 +149,7 @@ class AppTheme {
           foregroundColor: Colors.white,
           elevation: 0,
           centerTitle: true,
-          toolbarHeight: 76,
+          toolbarHeight: 78,
           surfaceTintColor: Colors.transparent,
         ),
         cardTheme: CardThemeData(
@@ -202,7 +202,7 @@ class AppTheme {
           style: OutlinedButton.styleFrom(
             foregroundColor: Colors.white,
             side: BorderSide(color: Colors.white.withValues(alpha: 0.14)),
-            minimumSize: const Size.fromHeight(46),
+            minimumSize: const Size.fromHeight(AppSize.buttonHeight),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(AppRadius.md),
             ),
